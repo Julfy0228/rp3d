@@ -25,11 +25,23 @@ struct Item
     bool visible = true;
     bool selected = false;
 
+    Item()
+    {
+        int side = 8;
+        vertices = {
+            { 0, 0 },
+            { side, 0 },
+            { side, side },
+            { 0, side }
+        };
+        size = glm::i32vec3(side);
+    }
+
     std::vector<glm::i32vec2> vertices;
 
     glm::i32vec3 position = glm::i32vec3(0);
     glm::i32vec3 rotation = glm::i32vec3(0);
-    glm::i32vec3 size = glm::i32vec3(0);
+    glm::i32vec3 size;
 
     glm::u8vec4 color = glm::u8vec4(255);
 };
