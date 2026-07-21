@@ -26,6 +26,4 @@ public:
 
     void run();
     void shutdown();
-
-    bool ContourEdit(const char* label, std::vector<glm::i32vec2>& vertices, int size_x, int size_y);
 };

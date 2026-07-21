@@ -26,6 +26,7 @@ FetchContent_MakeAvailable(glm)
 set(APP_SOURCES
     src/main.cpp
     src/EditorApp.cpp
+    src/Widgets.cpp
 )
 
 set(EXTERNAL_SOURCES
