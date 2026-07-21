@@ -67,6 +67,13 @@ struct Group : public SceneNode
     }
 };
 
+struct Camera {
+    float yaw = 0.7f;
+    float pitch = 0.45f;
+    float distance = 96.0f;
+    glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
+};
+
 struct Scene
 {
     Group root;
