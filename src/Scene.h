@@ -2,28 +2,32 @@
 
 #include <string>
 #include <vector>
+#include <memory>
+#include <algorithm>
 
 #include <glm/glm.hpp>
 
-struct Group
-{
-    std::string name;
-
-    bool selected = false;
-
-    std::vector<int> items;
-
-    glm::i32vec3 position;
-    glm::i32vec3 rotation;
-};
-
-struct Item
+struct SceneNode
 {
     int id = 0;
     std::string name;
 
     bool visible = true;
     bool selected = false;
+
+    glm::i32vec3 position = glm::i32vec3(0);
+    glm::i32vec3 rotation = glm::i32vec3(0);
+
+    virtual ~SceneNode() = default;
+
+    virtual bool is_group() const { return false; }
+};
+
+struct Item : public SceneNode
+{
+    std::vector<glm::i32vec2> vertices;
+    glm::i32vec3 size = glm::i32vec3(0);
+    glm::u8vec4 color = glm::u8vec4(255);
 
     Item()
     {
@@ -36,18 +40,51 @@ struct Item
         };
         size = glm::i32vec3(side);
     }
+};
 
-    std::vector<glm::i32vec2> vertices;
+struct Group : public SceneNode
+{
+    std::vector<std::shared_ptr<SceneNode>> children;
 
-    glm::i32vec3 position = glm::i32vec3(0);
-    glm::i32vec3 rotation = glm::i32vec3(0);
-    glm::i32vec3 size;
+    bool is_group() const override { return true; }
 
-    glm::u8vec4 color = glm::u8vec4(255);
+    void add_child(std::shared_ptr<SceneNode> child)
+    {
+        if (child) {
+            children.push_back(child);
+        }
+    }
+
+    void remove_child(int child_id)
+    {
+        children.erase(
+            std::remove_if(children.begin(), children.end(),
+                [child_id](const std::shared_ptr<SceneNode>& node) {
+                    return node->id == child_id;
+                }),
+            children.end()
+        );
+    }
 };
 
 struct Scene
 {
-    std::vector<Group> groups;
-    std::vector<Item> items;
+    Group root;
+
+    int next_id = 1;
+
+    template<typename T, typename... Args>
+    std::shared_ptr<T> create_node(Group* parent = nullptr, Args&&... args)
+    {
+        auto node = std::make_shared<T>(std::forward<Args>(args)...);
+        node->id = next_id++;
+        
+        if (parent) {
+            parent->add_child(node);
+        } else {
+            root.add_child(node);
+        }
+        
+        return node;
+    }
 };

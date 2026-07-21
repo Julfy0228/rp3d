@@ -18,6 +18,7 @@ private:
     void draw();
     void draw_dockspace();
     void draw_properties();
+    void draw_scene();
 public:
     EditorApp() = default;
     ~EditorApp();

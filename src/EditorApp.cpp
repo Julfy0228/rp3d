@@ -6,6 +6,7 @@
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
+#include <imgui_stdlib.h>
 
 #include <ImGuizmo.h>
 
@@ -80,9 +81,9 @@ void EditorApp::init_imgui()
 void EditorApp::run()
 {
     // Тест
-    Item item;
-    item.selected = true;
-    scene.items.push_back(item);
+    auto item = scene.create_node<Item>();
+    item->name = "Cube";
+    item->selected = true;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -111,6 +112,7 @@ void EditorApp::draw()
 {
     draw_dockspace();
     draw_properties();
+    draw_scene();
 }
 
 void EditorApp::draw_dockspace()
@@ -152,55 +154,69 @@ void EditorApp::draw_properties()
 {
     ImGui::Begin("Properties");
 
-    std::vector<Item*> selected_items;
-    for (auto& item : scene.items) {
-        if (item.selected) {
-            selected_items.push_back(&item);
+    std::vector<SceneNode*> selected_nodes;
+
+    auto collect_selected = [&](auto& self, SceneNode* node) -> void
+    {
+        if (!node) return;
+
+        if (node->selected)
+            selected_nodes.push_back(node);
+
+        if (node->is_group())
+        {
+            auto group = static_cast<Group*>(node);
+            for (auto& child : group->children)
+                self(self, child.get());
+        }
+    };
+
+    for (auto& child : scene.root.children)
+        collect_selected(collect_selected, child.get());
+
+    if (selected_nodes.size() == 1)
+    {
+        SceneNode* node = selected_nodes.front();
+
+        ImGui::InputText("Name", &node->name);
+        ImGui::DragInt3("Position", &node->position.x, 0.1f);
+
+        if (ImGui::DragInt3("Rotation", &node->rotation.x))
+            for (int i = 0; i < 3; ++i)
+                node->rotation[i] = (node->rotation[i] % 360 + 360) % 360;
+
+        if (!node->is_group())
+        {
+            Item* item = static_cast<Item*>(node);
+
+            if (ImGui::DragInt3("Size", &item->size.x, 0.1f))
+                for (int i = 0; i < 3; ++i)
+                    if (item->size[i] < 0) item->size[i] = 0;
+
+            glm::vec4 color_float = glm::vec4(item->color) / 255.0f;
+            if (ImGui::ColorEdit4("Color", &color_float.x, ImGuiColorEditFlags_Uint8))
+                item->color = glm::u8vec4(color_float * 255.0f + 0.5f);
+
+            Widgets::ContourEdit("Contour", item->vertices, item->size.x, item->size.y);
+        }
+        else
+        {
+            ImGui::TextDisabled("Group Node (Children: %d)", (int)static_cast<Group*>(node)->children.size());
         }
     }
-    
-    std::vector<Group*> selected_groups;
-    for (auto& group : scene.groups) {
-        if (group.selected) {
-            selected_groups.push_back(&group);
-        }
-    }
-
-    auto ic = selected_items.size();
-    auto gc = selected_groups.size();
-
-    if (ic == 1 && gc == 0)
+    else if (selected_nodes.size() > 1)
     {
-        Item* item = selected_items.front();
-        char name[128] = {};
-
-        ImGui::InputText("Name", name, sizeof(name));
-
-        ImGui::DragInt3("Position", &item->position.x, 0.1f);
-
-        if (ImGui::DragInt3("Rotation", &item->rotation.x))
-            for (int i = 0; i < 3; ++i)
-                item->rotation[i] = (item->rotation[i] % 360 + 360) % 360;
-                
-        if (ImGui::DragInt3("Size", &item->size.x, 0.1f))
-            for (int i = 0; i < 3; ++i)
-                if (item->size[i] < 0) item->size[i] = 0;
-
-        glm::vec4 color_float = glm::vec4(item->color) / 255.0f;
-        if (ImGui::ColorEdit4("Color", &color_float.x, ImGuiColorEditFlags_Uint8))
-            item->color = glm::u8vec4(color_float * 255.0f + 0.5f);
-
-        Widgets::ContourEdit("Contour", item->vertices, item->size.x, item->size.y);
+        ImGui::Text("%d items selected", (int)selected_nodes.size());
+        // TODO: Сделать групповое смещение
     }
-    else if (ic == 0 && gc == 1)
-    {
-        Group* group = selected_groups.front();
-    }
-    else if (ic > 0 && gc > 0)
-    {
 
-    }
-    
+    ImGui::End();
+}
+
+void EditorApp::draw_scene()
+{
+    ImGui::Begin("Scene");
+
     ImGui::End();
 }
 
