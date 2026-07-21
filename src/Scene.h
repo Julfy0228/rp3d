@@ -67,7 +67,8 @@ struct Group : public SceneNode
     }
 };
 
-struct Camera {
+struct Camera
+{
     float yaw = 0.7f;
     float pitch = 0.45f;
     float distance = 96.0f;
