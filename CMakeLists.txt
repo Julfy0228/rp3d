@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14)
 project(VoxelModeler LANGUAGES CXX)
 
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -23,9 +25,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
+FetchContent_Declare(
+    earcuthpp
+    GIT_REPOSITORY https://github.com/mapbox/earcut.hpp.git
+    GIT_TAG        v2.2.4
+)
+FetchContent_GetProperties(earcuthpp)
+if(NOT earcuthpp_POPULATED)
+    FetchContent_Populate(earcuthpp)
+endif()
+
 set(APP_SOURCES
     src/main.cpp
     src/EditorApp.cpp
+    src/ViewportRenderer.cpp
     src/Widgets.cpp
 )
 
@@ -53,6 +66,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     external/imgui
     external/imgui/backends
     external/ImGuizmo
+    ${earcuthpp_SOURCE_DIR}/include
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE 

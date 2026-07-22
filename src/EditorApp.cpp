@@ -1,8 +1,11 @@
 #include "EditorApp.h"
+#include "ViewportRenderer.h"
 #include "Widgets.h"
 
 
 #include <iostream>
+#include <vector>
+
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
@@ -18,8 +21,10 @@ void EditorApp::glfw_error_callback(int error, const char* description)
 bool EditorApp::init()
 {
     if (!init_window()) return false;
-    
+
     init_imgui();
+    viewport_renderer = new ViewportRenderer();
+    if (!viewport_renderer->init()) return false;
 
     return true;
 }
@@ -85,6 +90,8 @@ void EditorApp::run()
     item->name = "Cube";
     item->selected = true;
 
+    scene.create_node<Item>();
+
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
@@ -100,7 +107,7 @@ void EditorApp::run()
         int w = 0, h = 0;
         glfwGetFramebufferSize(window, &w, &h);
         glViewport(0, 0, w, h);
-        glClearColor(0, 0, 0, 0);
+        glClearColor(0.03f, 0.03f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -217,6 +224,25 @@ void EditorApp::draw_scene()
 {
     ImGui::Begin("Scene");
 
+    ImVec2 viewport_size = ImGui::GetContentRegionAvail();
+    int viewport_width = std::max(1, static_cast<int>(viewport_size.x));
+    int viewport_height = std::max(1, static_cast<int>(viewport_size.y));
+
+    if (viewport_renderer) {
+        viewport_renderer->render(scene, viewport_width, viewport_height);
+    }
+
+    if (viewport_renderer && viewport_renderer->get_texture_id() != 0) {
+        ImGui::Image(
+            viewport_renderer->get_texture_id(),
+            ImVec2(static_cast<float>(viewport_width), static_cast<float>(viewport_height)),
+            ImVec2(0.0f, 1.0f),
+            ImVec2(1.0f, 0.0f));
+    }
+    else {
+        ImGui::TextDisabled("Viewport is not ready");
+    }
+
     ImGui::End();
 }
 
@@ -227,5 +253,22 @@ EditorApp::~EditorApp()
 
 void EditorApp::shutdown()
 {
-    
+    if (viewport_renderer)
+    {
+        viewport_renderer->shutdown();
+        delete viewport_renderer;
+        viewport_renderer = nullptr;
+    }
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+
+    if (window)
+    {
+        glfwDestroyWindow(window);
+        window = nullptr;
+    }
+
+    glfwTerminate();
 }

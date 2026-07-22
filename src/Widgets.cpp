@@ -12,6 +12,7 @@ namespace Widgets
     bool ContourEdit(const char* label, std::vector<glm::i32vec2>& vertices, int size_x, int size_y)
     {
         bool value_changed = false;
+        glm::vec2 geometry_center(0.0f, 0.0f);
 
         ImGui::PushID(label);
         ImGui::Text("%s", label);
@@ -45,6 +46,13 @@ namespace Widgets
             return ImVec2(canvas_p.x + norm_x * canvas_sz.x, canvas_p.y + norm_y * canvas_sz.y);
         };
 
+        auto GridToScreenFloat = [&](const glm::vec2& pt) -> ImVec2
+        {
+            float norm_x = pt.x / static_cast<float>(size_x);
+            float norm_y = pt.y / static_cast<float>(size_y);
+            return ImVec2(canvas_p.x + norm_x * canvas_sz.x, canvas_p.y + norm_y * canvas_sz.y);
+        };
+
         auto ScreenToGrid = [&](const ImVec2& pos) -> glm::i32vec2
         {
             float norm_x = (pos.x - canvas_p.x) / canvas_sz.x;
@@ -53,6 +61,25 @@ namespace Widgets
             int gy = static_cast<int>(std::round(norm_y * size_y));
             return glm::i32vec2(glm::clamp(gx, 0, size_x), glm::clamp(gy, 0, size_y));
         };
+
+        if (!vertices.empty())
+        {
+            int min_x = vertices[0].x;
+            int max_x = vertices[0].x;
+            int min_y = vertices[0].y;
+            int max_y = vertices[0].y;
+            for (const glm::i32vec2& point : vertices)
+            {
+                min_x = std::min(min_x, point.x);
+                max_x = std::max(max_x, point.x);
+                min_y = std::min(min_y, point.y);
+                max_y = std::max(max_y, point.y);
+            }
+
+            geometry_center = glm::vec2(
+                (static_cast<float>(min_x) + static_cast<float>(max_x)) * 0.5f,
+                (static_cast<float>(min_y) + static_cast<float>(max_y)) * 0.5f);
+        }
 
         const int grid_step_x = std::max(1, size_x / 16);
         const int grid_step_y = std::max(1, size_y / 16);
@@ -184,6 +211,22 @@ namespace Widgets
                 std::snprintf(buf, sizeof(buf), "(%d, %d)", vertices[i].x, vertices[i].y);
                 draw_list->AddText(ImVec2(node_pos.x + 8, node_pos.y - 12), IM_COL32(255, 255, 255, 255), buf);
             }
+        }
+
+        if (!vertices.empty())
+        {
+            ImVec2 center_pos = GridToScreenFloat(geometry_center);
+            draw_list->AddCircleFilled(center_pos, 4.0f, IM_COL32(120, 255, 120, 255));
+            draw_list->AddLine(
+                ImVec2(center_pos.x - 8.0f, center_pos.y),
+                ImVec2(center_pos.x + 8.0f, center_pos.y),
+                IM_COL32(120, 255, 120, 220),
+                1.5f);
+            draw_list->AddLine(
+                ImVec2(center_pos.x, center_pos.y - 8.0f),
+                ImVec2(center_pos.x, center_pos.y + 8.0f),
+                IM_COL32(120, 255, 120, 220),
+                1.5f);
         }
 
         ImGui::TextDisabled("LMB: add/drag");

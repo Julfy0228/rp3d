@@ -2,14 +2,16 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <vector>
 #include <Scene.h>
+
+class ViewportRenderer;
 
 class EditorApp
 {
 private:
     GLFWwindow* window = nullptr;
     Scene scene;
+    ViewportRenderer* viewport_renderer = nullptr;
 
     static void glfw_error_callback(int error, const char* description);
     bool init_window();
