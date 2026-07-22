@@ -38,7 +38,9 @@ endif()
 set(APP_SOURCES
     src/main.cpp
     src/EditorApp.cpp
-    src/SceneObjectsPanel.cpp
+    src/panels/PropertiesPanel.cpp
+    src/panels/SceneObjectsPanel.cpp
+    src/panels/ScenePanel.cpp
     src/ViewportRenderer.cpp
     src/Widgets.cpp
 )

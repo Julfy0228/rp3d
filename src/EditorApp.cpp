@@ -1,16 +1,15 @@
 #include "EditorApp.h"
-#include "SceneObjectsPanel.h"
+#include "panels/PropertiesPanel.h"
+#include "panels/SceneObjectsPanel.h"
+#include "panels/ScenePanel.h"
 #include "ViewportRenderer.h"
-#include "Widgets.h"
 
 
 #include <iostream>
-#include <vector>
 
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
-#include <imgui_stdlib.h>
 
 #include <ImGuizmo.h>
 
@@ -25,6 +24,8 @@ bool EditorApp::init()
 
     init_imgui();
     scene_objects_panel = new SceneObjectsPanel();
+    scene_panel = new ScenePanel();
+    properties_panel = new PropertiesPanel();
     viewport_renderer = new ViewportRenderer();
     if (!viewport_renderer->init()) return false;
 
@@ -169,90 +170,14 @@ void EditorApp::draw_dockspace()
 
 void EditorApp::draw_properties()
 {
-    ImGui::Begin("Properties");
-
-    std::vector<SceneNode*> selected_nodes;
-
-    auto collect_selected = [&](auto& self, SceneNode* node) -> void
-    {
-        if (!node) return;
-
-        if (node->selected)
-            selected_nodes.push_back(node);
-
-        if (!node->is_group())
-            return;
-
-        Group* group = static_cast<Group*>(node);
-        for (auto& child : group->children)
-            self(self, child.get());
-    };
-
-    for (auto& child : scene.root.children)
-        collect_selected(collect_selected, child.get());
-
-    if (selected_nodes.size() == 1)
-    {
-        SceneNode* node = selected_nodes.front();
-
-        ImGui::DragInt3("Position", &node->position.x, 0.1f);
-
-        if (ImGui::DragInt3("Rotation", &node->rotation.x))
-            for (int i = 0; i < 3; ++i)
-                node->rotation[i] = (node->rotation[i] % 360 + 360) % 360;
-
-        if (!node->is_group())
-        {
-            Item* item = static_cast<Item*>(node);
-
-            if (ImGui::DragInt3("Size", &item->size.x, 0.1f))
-                for (int i = 0; i < 3; ++i)
-                    if (item->size[i] < 0) item->size[i] = 0;
-
-            glm::vec4 color_float = glm::vec4(item->color) / 255.0f;
-            if (ImGui::ColorEdit4("Color", &color_float.x, ImGuiColorEditFlags_Uint8))
-                item->color = glm::u8vec4(color_float * 255.0f + 0.5f);
-
-            Widgets::ContourEdit("Contour", item->vertices, item->size.x, item->size.y);
-        }
-        else
-        {
-            ImGui::TextDisabled("Group Node (Children: %d)", (int)static_cast<Group*>(node)->children.size());
-        }
-    }
-    else if (selected_nodes.size() > 1)
-    {
-        ImGui::Text("%d items selected", (int)selected_nodes.size());
-        // TODO: Сделать групповое смещение
-    }
-
-    ImGui::End();
+    if (properties_panel)
+        properties_panel->draw(scene);
 }
 
 void EditorApp::draw_scene()
 {
-    ImGui::Begin("Scene");
-
-    ImVec2 viewport_size = ImGui::GetContentRegionAvail();
-    int viewport_width = std::max(1, static_cast<int>(viewport_size.x));
-    int viewport_height = std::max(1, static_cast<int>(viewport_size.y));
-
-    if (viewport_renderer) {
-        viewport_renderer->render(scene, viewport_width, viewport_height);
-    }
-
-    if (viewport_renderer && viewport_renderer->get_texture_id() != 0) {
-        ImGui::Image(
-            viewport_renderer->get_texture_id(),
-            ImVec2(static_cast<float>(viewport_width), static_cast<float>(viewport_height)),
-            ImVec2(0.0f, 1.0f),
-            ImVec2(1.0f, 0.0f));
-    }
-    else {
-        ImGui::TextDisabled("Viewport is not ready");
-    }
-
-    ImGui::End();
+    if (scene_panel)
+        scene_panel->draw(scene, viewport_renderer);
 }
 
 EditorApp::~EditorApp()
@@ -266,6 +191,18 @@ void EditorApp::shutdown()
     {
         delete scene_objects_panel;
         scene_objects_panel = nullptr;
+    }
+
+    if (scene_panel)
+    {
+        delete scene_panel;
+        scene_panel = nullptr;
+    }
+
+    if (properties_panel)
+    {
+        delete properties_panel;
+        properties_panel = nullptr;
     }
 
     if (viewport_renderer)

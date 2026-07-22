@@ -6,6 +6,8 @@
 
 class ViewportRenderer;
 class SceneObjectsPanel;
+class ScenePanel;
+class PropertiesPanel;
 
 class EditorApp
 {
@@ -14,6 +16,8 @@ private:
     Scene scene;
     ViewportRenderer* viewport_renderer = nullptr;
     SceneObjectsPanel* scene_objects_panel = nullptr;
+    ScenePanel* scene_panel = nullptr;
+    PropertiesPanel* properties_panel = nullptr;
 
     static void glfw_error_callback(int error, const char* description);
     bool init_window();

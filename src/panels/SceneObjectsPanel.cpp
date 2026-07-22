@@ -94,7 +94,8 @@ bool SceneObjectsPanel::is_descendant_of(const Group* candidate_parent, const Sc
     if (!candidate_parent || !node)
         return false;
 
-    for (const auto& child : candidate_parent->children) {
+    for (const auto& child : candidate_parent->children)
+    {
         if (!child) continue;
 
         if (child.get() == node) return true;
@@ -182,7 +183,8 @@ void SceneObjectsPanel::handle_scene_drop_target(Scene& scene, SceneNode* target
 
     if (ImGui::BeginDragDropTarget())
     {
-        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_NODE", ImGuiDragDropFlags_AcceptBeforeDelivery)) {
+        if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_NODE", ImGuiDragDropFlags_AcceptBeforeDelivery))
+        {
             SceneNode* payload_node = *static_cast<SceneNode* const*>(payload->Data);
             Group* inside_group = allow_inside_drop && target_node->is_group() ? static_cast<Group*>(target_node) : nullptr;
             SceneDropMode drop_mode = SceneDropMode::After;
@@ -316,7 +318,8 @@ void SceneObjectsPanel::draw_scene_node_row(Scene& scene, SceneNode* node, int d
         ImGui::EndDragDropSource();
     }
 
-    if (node->is_group() && ImGui::BeginDragDropTarget()) {
+    if (node->is_group() && ImGui::BeginDragDropTarget())
+    {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_NODE"))
         {
             SceneNode* payload_node = *static_cast<SceneNode* const*>(payload->Data);
