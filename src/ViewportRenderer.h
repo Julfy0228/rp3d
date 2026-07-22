@@ -40,8 +40,9 @@ private:
     void ensure_viewport_resources(int width, int height);
     void ensure_mesh_resources();
     bool build_item_mesh(const Item& item, std::vector<MeshVertex>& vertices, std::vector<unsigned int>& indices, glm::vec3& pivot) const;
-    glm::mat4 build_model_matrix(const Item& item, const glm::vec3& pivot) const;
-    void collect_items(const Group& group, std::vector<const Item*>& items) const;
+    glm::mat4 build_node_transform(const SceneNode& node) const;
+    glm::mat4 build_model_matrix(const Item& item, const glm::mat4& parent_transform, const glm::vec3& pivot) const;
+    void collect_items(const Group& group, const glm::mat4& parent_transform, std::vector<ItemRenderData>& items) const;
 
 public:
     bool init();

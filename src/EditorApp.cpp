@@ -1,4 +1,5 @@
 #include "EditorApp.h"
+#include "SceneObjectsPanel.h"
 #include "ViewportRenderer.h"
 #include "Widgets.h"
 
@@ -23,6 +24,7 @@ bool EditorApp::init()
     if (!init_window()) return false;
 
     init_imgui();
+    scene_objects_panel = new SceneObjectsPanel();
     viewport_renderer = new ViewportRenderer();
     if (!viewport_renderer->init()) return false;
 
@@ -41,16 +43,15 @@ bool EditorApp::init_window()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    window = glfwCreateWindow(1280, 720, "Voxel Modeler", nullptr, nullptr);
-    if (!window)
-    {
-        std::cerr << "Failed to create GLFW window" << std::endl;
+    window = glfwCreateWindow(1280, 720, "VoxelModeler", nullptr, nullptr);
+    if (!window) {
         glfwTerminate();
         return false;
     }
 
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
+
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
     {
         std::cerr << "Failed to initialize GLAD" << std::endl;
@@ -95,7 +96,7 @@ void EditorApp::run()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        
+
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
@@ -118,8 +119,17 @@ void EditorApp::run()
 void EditorApp::draw()
 {
     draw_dockspace();
+    draw_objects();
     draw_properties();
     draw_scene();
+}
+
+void EditorApp::draw_objects()
+{
+    if (scene_objects_panel)
+    {
+        scene_objects_panel->draw(scene);
+    }
 }
 
 void EditorApp::draw_dockspace()
@@ -170,12 +180,12 @@ void EditorApp::draw_properties()
         if (node->selected)
             selected_nodes.push_back(node);
 
-        if (node->is_group())
-        {
-            auto group = static_cast<Group*>(node);
-            for (auto& child : group->children)
-                self(self, child.get());
-        }
+        if (!node->is_group())
+            return;
+
+        Group* group = static_cast<Group*>(node);
+        for (auto& child : group->children)
+            self(self, child.get());
     };
 
     for (auto& child : scene.root.children)
@@ -185,7 +195,6 @@ void EditorApp::draw_properties()
     {
         SceneNode* node = selected_nodes.front();
 
-        ImGui::InputText("Name", &node->name);
         ImGui::DragInt3("Position", &node->position.x, 0.1f);
 
         if (ImGui::DragInt3("Rotation", &node->rotation.x))
@@ -253,6 +262,12 @@ EditorApp::~EditorApp()
 
 void EditorApp::shutdown()
 {
+    if (scene_objects_panel)
+    {
+        delete scene_objects_panel;
+        scene_objects_panel = nullptr;
+    }
+
     if (viewport_renderer)
     {
         viewport_renderer->shutdown();

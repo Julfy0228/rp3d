@@ -52,11 +52,11 @@ namespace
     double signed_area(const std::vector<Point2d>& polygon)
     {
         double area = 0.0;
-        if (polygon.size() < 3) {
+        if (polygon.size() < 3)
             return 0.0;
-        }
 
-        for (size_t i = 0; i < polygon.size(); ++i) {
+        for (size_t i = 0; i < polygon.size(); ++i)
+        {
             const Point2d& a = polygon[i];
             const Point2d& b = polygon[(i + 1) % polygon.size()];
             area += a.x * b.y - b.x * a.y;
@@ -79,17 +79,15 @@ namespace
         double cdx = d.x - c.x;
         double cdy = d.y - c.y;
         double denom = abx * cdy - aby * cdx;
-        if (std::abs(denom) <= kEpsilon) {
+        if (std::abs(denom) <= kEpsilon)
             return false;
-        }
 
         double acx = c.x - a.x;
         double acy = c.y - a.y;
         t_ab = (acx * cdy - acy * cdx) / denom;
         t_cd = (acx * aby - acy * abx) / denom;
-        if (t_ab <= kEpsilon || t_ab >= 1.0 - kEpsilon || t_cd <= kEpsilon || t_cd >= 1.0 - kEpsilon) {
+        if (t_ab <= kEpsilon || t_ab >= 1.0 - kEpsilon || t_cd <= kEpsilon || t_cd >= 1.0 - kEpsilon)
             return false;
-        }
 
         intersection = { a.x + abx * t_ab, a.y + aby * t_ab };
         return true;
@@ -98,33 +96,32 @@ namespace
     std::vector<std::vector<Point2d>> build_simple_loops(const std::vector<glm::i32vec2>& contour)
     {
         std::vector<std::vector<Point2d>> loops;
-        if (contour.size() < 3) {
+        if (contour.size() < 3)
             return loops;
-        }
 
         std::vector<Point2d> base_points;
         base_points.reserve(contour.size());
-        for (const glm::i32vec2& point : contour) {
+        for (const glm::i32vec2& point : contour)
             base_points.push_back({ static_cast<double>(point.x), static_cast<double>(point.y) });
-        }
 
         const size_t edge_count = base_points.size();
         std::vector<std::vector<SegmentSplitPoint>> splits(edge_count);
-        for (size_t i = 0; i < edge_count; ++i) {
+        for (size_t i = 0; i < edge_count; ++i)
+        {
             splits[i].push_back({ 0.0, base_points[i] });
             splits[i].push_back({ 1.0, base_points[(i + 1) % edge_count] });
         }
 
-        for (size_t i = 0; i < edge_count; ++i) {
+        for (size_t i = 0; i < edge_count; ++i)
+        {
             size_t i_next = (i + 1) % edge_count;
-            for (size_t j = i + 1; j < edge_count; ++j) {
+            for (size_t j = i + 1; j < edge_count; ++j)
+            {
                 size_t j_next = (j + 1) % edge_count;
-                if (i == j || i_next == j || j_next == i) {
+                if (i == j || i_next == j || j_next == i)
                     continue;
-                }
-                if (i == 0 && j_next == 0) {
+                if (i == 0 && j_next == 0)
                     continue;
-                }
 
                 double t_i = 0.0;
                 double t_j = 0.0;
@@ -137,48 +134,47 @@ namespace
         }
 
         std::vector<Point2d> graph_points;
-        auto register_point = [&](const Point2d& point) -> int {
-            for (size_t index = 0; index < graph_points.size(); ++index) {
-                if (same_point(graph_points[index], point)) {
+        auto register_point = [&](const Point2d& point) -> int
+        {
+            for (size_t index = 0; index < graph_points.size(); ++index)
+                if (same_point(graph_points[index], point))
                     return static_cast<int>(index);
-                }
-            }
             graph_points.push_back(point);
             return static_cast<int>(graph_points.size() - 1);
         };
 
         std::map<int, std::vector<int>> adjacency;
-        for (size_t edge_index = 0; edge_index < edge_count; ++edge_index) {
+        for (size_t edge_index = 0; edge_index < edge_count; ++edge_index)
+        {
             auto& edge_splits = splits[edge_index];
-            std::sort(edge_splits.begin(), edge_splits.end(), [](const SegmentSplitPoint& lhs, const SegmentSplitPoint& rhs) {
+            std::sort(edge_splits.begin(), edge_splits.end(), [](const SegmentSplitPoint& lhs, const SegmentSplitPoint& rhs)
+            {
                 return lhs.t < rhs.t;
             });
 
             std::vector<int> chain;
-            for (const SegmentSplitPoint& split : edge_splits) {
+            for (const SegmentSplitPoint& split : edge_splits)
+            {
                 int point_index = register_point(split.point);
-                if (chain.empty() || chain.back() != point_index) {
+                if (chain.empty() || chain.back() != point_index)
                     chain.push_back(point_index);
-                }
             }
 
-            for (size_t i = 0; i + 1 < chain.size(); ++i) {
+            for (size_t i = 0; i + 1 < chain.size(); ++i)
+            {
                 int a = chain[i];
                 int b = chain[i + 1];
-                if (a == b) {
-                    continue;
-                }
+                if (a == b) continue;
                 adjacency[a].push_back(b);
                 adjacency[b].push_back(a);
             }
         }
 
         std::set<std::pair<int, int>> used_directed_edges;
-        for (const auto& [start, neighbors] : adjacency) {
+        for (const auto& [start, neighbors] : adjacency)
             for (int next : neighbors) {
-                if (used_directed_edges.find({ start, next }) != used_directed_edges.end()) {
+                if (used_directed_edges.find({ start, next }) != used_directed_edges.end())
                     continue;
-                }
 
                 std::vector<int> cycle_indices;
                 cycle_indices.push_back(start);
@@ -234,23 +230,19 @@ namespace
 
                 std::vector<Point2d> loop;
                 loop.reserve(cycle_indices.size());
-                for (int index : cycle_indices) {
-                    if (loop.empty() || !same_point(loop.back(), graph_points[index])) {
+                for (int index : cycle_indices)
+                    if (loop.empty() || !same_point(loop.back(), graph_points[index]))
                         loop.push_back(graph_points[index]);
-                    }
-                }
 
-                if (loop.size() >= 3 && std::abs(signed_area(loop)) > kEpsilon) {
+                if (loop.size() >= 3 && std::abs(signed_area(loop)) > kEpsilon)
                     loops.push_back(loop);
-                }
             }
-        }
 
-        if (loops.empty()) {
+        if (loops.empty())
+        {
             std::vector<Point2d> fallback = base_points;
-            if (std::abs(signed_area(fallback)) > kEpsilon) {
+            if (std::abs(signed_area(fallback)) > kEpsilon)
                 loops.push_back(fallback);
-            }
         }
 
         return loops;
@@ -259,9 +251,7 @@ namespace
     std::string read_text_file(const char* path)
     {
         std::ifstream file(path, std::ios::in | std::ios::binary);
-        if (!file) {
-            return {};
-        }
+        if (!file) return {};
 
         std::ostringstream stream;
         stream << file.rdbuf();
@@ -277,9 +267,8 @@ namespace
 
         GLint success = GL_FALSE;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-        if (success == GL_TRUE) {
+        if (success == GL_TRUE)
             return shader;
-        }
 
         GLint log_length = 0;
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
@@ -343,14 +332,16 @@ bool ViewportRenderer::load_shader_program(const char* vertex_path, const char* 
 {
     std::string vertex_source = read_text_file(vertex_path);
     std::string fragment_source = read_text_file(fragment_path);
-    if (vertex_source.empty() || fragment_source.empty()) {
+    if (vertex_source.empty() || fragment_source.empty())
+    {
         std::cerr << "Failed to read shader sources" << std::endl;
         return false;
     }
 
     GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_source);
     GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source);
-    if (vertex_shader == 0 || fragment_shader == 0) {
+    if (vertex_shader == 0 || fragment_shader == 0)
+    {
         if (vertex_shader != 0) glDeleteShader(vertex_shader);
         if (fragment_shader != 0) glDeleteShader(fragment_shader);
         return false;
@@ -366,9 +357,8 @@ bool ViewportRenderer::load_shader_program(const char* vertex_path, const char* 
 
     GLint success = GL_FALSE;
     glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
-    if (success == GL_TRUE) {
+    if (success == GL_TRUE)
         return true;
-    }
 
     GLint log_length = 0;
     glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &log_length);
@@ -382,15 +372,14 @@ bool ViewportRenderer::load_shader_program(const char* vertex_path, const char* 
 
 void ViewportRenderer::ensure_viewport_resources(int target_width, int target_height)
 {
-    if (target_width <= 0 || target_height <= 0) {
+    if (target_width <= 0 || target_height <= 0)
         return;
-    }
 
-    if (width == target_width && height == target_height && framebuffer != 0) {
+    if (width == target_width && height == target_height && framebuffer != 0)
         return;
-    }
 
-    if (framebuffer != 0) {
+    if (framebuffer != 0)
+    {
         glDeleteFramebuffers(1, &framebuffer);
         glDeleteTextures(1, &color_texture);
         glDeleteRenderbuffers(1, &depth_renderbuffer);
@@ -417,18 +406,16 @@ void ViewportRenderer::ensure_viewport_resources(int target_width, int target_he
     glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth_renderbuffer);
 
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cerr << "Viewport framebuffer is incomplete" << std::endl;
-    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void ViewportRenderer::ensure_mesh_resources()
 {
-    if (mesh_vao != 0) {
+    if (mesh_vao != 0)
         return;
-    }
 
     glGenVertexArrays(1, &mesh_vao);
     glGenBuffers(1, &mesh_vbo);
@@ -446,15 +433,15 @@ void ViewportRenderer::ensure_mesh_resources()
 
 bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>& vertices, std::vector<unsigned int>& indices, glm::vec3& pivot) const
 {
-    if (item.vertices.size() < 3) {
+    if (item.vertices.size() < 3)
         return false;
-    }
 
     int min_x = item.vertices[0].x;
     int max_x = item.vertices[0].x;
     int min_y = item.vertices[0].y;
     int max_y = item.vertices[0].y;
-    for (const glm::i32vec2& point : item.vertices) {
+    for (const glm::i32vec2& point : item.vertices)
+    {
         min_x = std::min(min_x, point.x);
         max_x = std::max(max_x, point.x);
         min_y = std::min(min_y, point.y);
@@ -470,15 +457,16 @@ bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>
     const size_t contour_count = item.vertices.size();
 
     std::vector<std::vector<Point2d>> loops = build_simple_loops(item.vertices);
-    for (const std::vector<Point2d>& loop : loops) {
+    for (const std::vector<Point2d>& loop : loops)
+    {
         std::vector<std::vector<std::array<double, 2>>> polygon(1);
         polygon[0].reserve(loop.size());
-        for (const Point2d& point : loop) {
+        for (const Point2d& point : loop)
             polygon[0].push_back({ point.x, point.y });
-        }
 
         std::vector<uint32_t> cap_indices = mapbox::earcut<uint32_t>(polygon);
-        for (size_t i = 0; i + 2 < cap_indices.size(); i += 3) {
+        for (size_t i = 0; i + 2 < cap_indices.size(); i += 3)
+        {
             const Point2d& a2 = loop[cap_indices[i]];
             const Point2d& b2 = loop[cap_indices[i + 1]];
             const Point2d& c2 = loop[cap_indices[i + 2]];
@@ -486,13 +474,13 @@ bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>
             glm::vec3 a(static_cast<float>(a2.x), static_cast<float>(a2.y), 0.0f);
             glm::vec3 b(static_cast<float>(b2.x), static_cast<float>(b2.y), 0.0f);
             glm::vec3 c(static_cast<float>(c2.x), static_cast<float>(c2.y), 0.0f);
-            if (height == 0) {
+            if (height == 0)
                 append_triangle(vertices, indices, a, b, c);
-            } else {
+            else
                 append_triangle(vertices, indices, c, b, a);
-            }
 
-            if (height > 0) {
+            if (height > 0)
+            {
                 glm::vec3 a_top(a.x, a.y, static_cast<float>(height));
                 glm::vec3 b_top(b.x, b.y, static_cast<float>(height));
                 glm::vec3 c_top(c.x, c.y, static_cast<float>(height));
@@ -501,8 +489,10 @@ bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>
         }
     }
 
-    if (height > 0) {
-        for (size_t i = 0; i < contour_count; ++i) {
+    if (height > 0)
+    {
+        for (size_t i = 0; i < contour_count; ++i)
+        {
             size_t next = (i + 1) % contour_count;
 
             glm::vec3 bottom_a(static_cast<float>(item.vertices[i].x), static_cast<float>(item.vertices[i].y), 0.0f);
@@ -515,34 +505,46 @@ bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>
         }
     }
 
-    for (MeshVertex& vertex : vertices) {
+    for (MeshVertex& vertex : vertices)
         vertex.position -= to_local_space(pivot);
-    }
 
     return !vertices.empty();
 }
 
-glm::mat4 ViewportRenderer::build_model_matrix(const Item& item, const glm::vec3& pivot) const
+glm::mat4 ViewportRenderer::build_node_transform(const SceneNode& node) const
 {
-    glm::mat4 model = glm::translate(glm::mat4(1.0f), glm::vec3(item.position.x, item.position.y, item.position.z));
-    model = glm::rotate(model, glm::radians(static_cast<float>(item.rotation.z)), glm::vec3(0.0f, 0.0f, 1.0f));
-    model = glm::rotate(model, glm::radians(static_cast<float>(item.rotation.y)), glm::vec3(0.0f, 1.0f, 0.0f));
-    model = glm::rotate(model, glm::radians(static_cast<float>(item.rotation.x)), glm::vec3(1.0f, 0.0f, 0.0f));
-    return model;
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(node.position.x, node.position.y, node.position.z));
+    transform = glm::rotate(transform, glm::radians(static_cast<float>(node.rotation.z)), glm::vec3(0.0f, 0.0f, 1.0f));
+    transform = glm::rotate(transform, glm::radians(static_cast<float>(node.rotation.y)), glm::vec3(0.0f, 1.0f, 0.0f));
+    transform = glm::rotate(transform, glm::radians(static_cast<float>(node.rotation.x)), glm::vec3(1.0f, 0.0f, 0.0f));
+    return transform;
 }
 
-void ViewportRenderer::collect_items(const Group& group, std::vector<const Item*>& items) const
+glm::mat4 ViewportRenderer::build_model_matrix(const Item& item, const glm::mat4& parent_transform, const glm::vec3& pivot) const
 {
-    for (const auto& child : group.children) {
-        if (!child) {
-            continue;
-        }
+    (void)pivot;
+    return parent_transform * build_node_transform(item);
+}
 
-        if (child->is_group()) {
-            collect_items(*static_cast<const Group*>(child.get()), items);
-        }
-        else {
-            items.push_back(static_cast<const Item*>(child.get()));
+void ViewportRenderer::collect_items(const Group& group, const glm::mat4& parent_transform, std::vector<ItemRenderData>& items) const
+{
+    glm::mat4 group_transform = parent_transform;
+    if (group.id != 0) {
+        group_transform = parent_transform * build_node_transform(group);
+    }
+
+    for (const auto& child : group.children) {
+        if (!child || !child->visible)
+            continue;
+
+        if (child->is_group())
+            collect_items(*static_cast<const Group*>(child.get()), group_transform, items);
+        else
+        {
+            ItemRenderData item_data;
+            item_data.item = static_cast<const Item*>(child.get());
+            item_data.model = build_model_matrix(*item_data.item, group_transform, glm::vec3(0.0f));
+            items.push_back(item_data);
         }
     }
 }
@@ -550,9 +552,8 @@ void ViewportRenderer::collect_items(const Group& group, std::vector<const Item*
 void ViewportRenderer::render(const Scene& scene, int target_width, int target_height)
 {
     ensure_viewport_resources(target_width, target_height);
-    if (framebuffer == 0 || shader_program == 0) {
+    if (framebuffer == 0 || shader_program == 0)
         return;
-    }
 
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
     glViewport(0, 0, target_width, target_height);
@@ -560,9 +561,10 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
     glClearColor(0.08f, 0.09f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    std::vector<const Item*> items;
-    collect_items(scene.root, items);
-    if (items.empty()) {
+    std::vector<ItemRenderData> items;
+    collect_items(scene.root, glm::mat4(1.0f), items);
+    if (items.empty())
+    {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return;
     }
@@ -586,13 +588,14 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
     GLint model_location = glGetUniformLocation(shader_program, "uModel");
     GLint color_location = glGetUniformLocation(shader_program, "uColor");
 
-    for (const Item* item : items) {
+    for (const ItemRenderData& item_data : items)
+    {
+        const Item* item = item_data.item;
         std::vector<MeshVertex> vertices;
         std::vector<unsigned int> indices;
         glm::vec3 pivot(0.0f);
-        if (!build_item_mesh(*item, vertices, indices, pivot)) {
+        if (!build_item_mesh(*item, vertices, indices, pivot))
             continue;
-        }
 
         glBindVertexArray(mesh_vao);
         glBindBuffer(GL_ARRAY_BUFFER, mesh_vbo);
@@ -600,9 +603,8 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ebo);
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)), indices.data(), GL_DYNAMIC_DRAW);
 
-        glm::mat4 model = build_model_matrix(*item, pivot);
         glm::vec4 color = glm::vec4(item->color) / 255.0f;
-        glUniformMatrix4fv(model_location, 1, GL_FALSE, glm::value_ptr(model));
+        glUniformMatrix4fv(model_location, 1, GL_FALSE, glm::value_ptr(item_data.model));
         glUniform4fv(color_location, 1, glm::value_ptr(color));
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, nullptr);
     }
