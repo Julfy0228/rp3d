@@ -1,8 +1,8 @@
 #include "PropertiesPanel.h"
-
 #include "Widgets.h"
 
 #include <imgui.h>
+#include <IconsLucide.h>
 
 void PropertiesPanel::collect_selected(SceneNode* node, std::vector<SceneNode*>& selected_nodes)
 {
@@ -22,7 +22,7 @@ void PropertiesPanel::collect_selected(SceneNode* node, std::vector<SceneNode*>&
 
 void PropertiesPanel::draw(Scene& scene)
 {
-    ImGui::Begin("Properties");
+    ImGui::Begin(ICON_LC_TABLE_PROPERTIES "Properties###PropertiesPanel");
 
     std::vector<SceneNode*> selected_nodes;
     for (auto& child : scene.root.children)

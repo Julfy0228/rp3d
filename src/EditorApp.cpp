@@ -1,9 +1,9 @@
 #include "EditorApp.h"
 #include "panels/PropertiesPanel.h"
-#include "panels/SceneObjectsPanel.h"
+#include "panels/ObjectsPanel.h"
 #include "panels/ScenePanel.h"
 #include "ViewportRenderer.h"
-
+#include "Native.h"
 
 #include <iostream>
 
@@ -12,6 +12,7 @@
 #include <imgui_impl_opengl3.h>
 
 #include <ImGuizmo.h>
+#include <IconsLucide.h>
 
 void EditorApp::glfw_error_callback(int error, const char* description)
 {
@@ -23,7 +24,7 @@ bool EditorApp::init()
     if (!init_window()) return false;
 
     init_imgui();
-    scene_objects_panel = new SceneObjectsPanel();
+    scene_objects_panel = new ObjectsPanel();
     scene_panel = new ScenePanel();
     properties_panel = new PropertiesPanel();
     viewport_renderer = new ViewportRenderer();
@@ -50,6 +51,7 @@ bool EditorApp::init_window()
         return false;
     }
 
+    SetDarkTitlebar(window);
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
 
@@ -66,9 +68,10 @@ void EditorApp::init_imgui()
 {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
     ImFontConfig font_config;
     font_config.OversampleH = 2;
@@ -77,7 +80,23 @@ void EditorApp::init_imgui()
         "assets/fonts/JetBrainsMono-Regular.ttf",
         20.0f,
         &font_config,
-        io.Fonts->GetGlyphRangesCyrillic());
+        io.Fonts->GetGlyphRangesCyrillic()
+    );
+
+    ImFontConfig icons_config;
+    icons_config.OversampleH = 2;
+    icons_config.OversampleV = 2;
+    icons_config.MergeMode = true;
+    icons_config.PixelSnapH = true;
+    icons_config.GlyphMinAdvanceX = 20.0f;
+    icons_config.GlyphOffset.y = 3.45f;
+    static const ImWchar icon_ranges[] = { ICON_MIN_LC, ICON_MAX_16_LC, 0 };
+    io.Fonts->AddFontFromFileTTF(
+        "assets/fonts/lucide.ttf",
+        18.0f,
+        &icons_config,
+        icon_ranges
+    );
 
     ImGui::StyleColorsDark();
 
@@ -87,6 +106,8 @@ void EditorApp::init_imgui()
 
 void EditorApp::run()
 {
+    ImGuiIO& io = ImGui::GetIO();
+    
     // Тест
     auto item = scene.create_node<Item>();
     item->name = "Cube";
@@ -112,6 +133,14 @@ void EditorApp::run()
         glClearColor(0.03f, 0.03f, 0.04f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        {
+            GLFWwindow* backup_current_context = glfwGetCurrentContext();
+            ImGui::UpdatePlatformWindows();
+            ImGui::RenderPlatformWindowsDefault();
+            glfwMakeContextCurrent(backup_current_context);
+        }
 
         glfwSwapBuffers(window);
     }

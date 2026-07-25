@@ -6,6 +6,9 @@
 
 #include <imgui.h>
 #include <glm/common.hpp>
+#include <imgui_internal.h>
+#include <imgui_stdlib.h>
+#include <IconsLucide.h>
 
 namespace Widgets
 {
@@ -235,5 +238,141 @@ namespace Widgets
 
         ImGui::PopID();
         return value_changed;
+    }
+
+    SceneTreeNodeOutput SceneTreeNode(
+        const char* str_id,
+        SceneTreeNodeFlags flags,
+        bool is_open,
+        const char* icon,
+        std::string& name)
+    {
+        SceneTreeNodeOutput out;
+
+        ImGuiWindow* window = ImGui::GetCurrentWindow();
+        if (window->SkipItems)
+            return out;
+
+        ImGuiContext& g = *GImGui;
+        const ImGuiStyle& style = g.Style;
+        const ImGuiID id = window->GetID(str_id);
+
+        const float row_height = ImGui::GetFrameHeight();
+        const float eye_width = 20.0f;
+        const float icon_width = 20.0f;
+        const float EYE_SPACING = 6.0f; 
+
+        const ImVec2 pos = window->DC.CursorPos;
+        const float avail_width = ImGui::GetContentRegionAvail().x;
+        const ImVec2 size(avail_width, row_height);
+
+        const ImRect total_bb(pos, ImVec2(pos.x + size.x, pos.y + row_height));
+        ImGui::ItemSize(total_bb, style.FramePadding.y);
+        if (!ImGui::ItemAdd(total_bb, id))
+            return out;
+
+        const float icon_start_x = pos.x + eye_width + EYE_SPACING;
+        const float text_start_x = icon_start_x + (icon && icon[0] != '\0' ? icon_width : 0.0f);
+
+        const ImRect eye_bb(pos, ImVec2(pos.x + eye_width, pos.y + row_height));
+        const ImRect icon_bb(ImVec2(icon_start_x, pos.y), ImVec2(icon_start_x + icon_width, pos.y + row_height));
+        const ImRect text_bb(ImVec2(text_start_x, pos.y), ImVec2(pos.x + size.x, pos.y + row_height));
+        
+        const ImRect full_row_bb(pos, ImVec2(pos.x + size.x, pos.y + row_height));
+        bool is_hovered = ImGui::IsMouseHoveringRect(full_row_bb.Min, full_row_bb.Max);
+
+        if (ImGui::IsMouseHoveringRect(eye_bb.Min, eye_bb.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            out.visibility_toggled = true;
+        }
+
+        if (flags.is_group && ImGui::IsMouseHoveringRect(icon_bb.Min, icon_bb.Max) && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            out.open_toggled = true;
+        }
+
+        ImDrawList* draw_list = window->DrawList;
+
+        if (flags.is_selected)
+        {
+            draw_list->AddRectFilled(full_row_bb.Min, full_row_bb.Max, ImGui::GetColorU32(ImGuiCol_Header));
+        }
+        else if (is_hovered)
+        {
+            draw_list->AddRectFilled(full_row_bb.Min, full_row_bb.Max, ImGui::GetColorU32(ImGuiCol_HeaderHovered));
+        }
+
+        ImU32 eye_col = flags.visible ? ImGui::GetColorU32(ImGuiCol_Text) : ImGui::GetColorU32(ImGuiCol_TextDisabled);
+        const char* eye_icon = flags.visible ? ICON_LC_EYE : ICON_LC_EYE_OFF;
+        ImVec2 eye_pos(eye_bb.Min.x + (eye_width - ImGui::CalcTextSize(eye_icon).x) * 0.5f, eye_bb.Min.y + (row_height - ImGui::GetFontSize()) * 0.5f);
+        draw_list->AddText(eye_pos, eye_col, eye_icon);
+
+        if (icon && icon[0] != '\0')
+        {
+            ImVec2 icon_pos(icon_start_x + (icon_width - ImGui::CalcTextSize(icon).x) * 0.5f, pos.y + (row_height - ImGui::GetFontSize()) * 0.5f);
+            draw_list->AddText(icon_pos, ImGui::GetColorU32(ImGuiCol_Text), icon);
+        }
+
+        if (flags.is_renaming)
+        {
+            float input_w = full_row_bb.Max.x - text_start_x - 4.0f;
+
+            ImGui::SetCursorScreenPos(ImVec2(text_start_x, pos.y + (row_height - ImGui::GetFontSize()) * 0.5f - style.FramePadding.y));
+            ImGui::SetNextItemWidth(input_w);
+
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2.0f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetColorU32(ImGuiCol_FrameBg));
+
+            ImGui::PushID("rename_field");
+            
+            ImGuiID focus_id = ImGui::GetID("rename_focus");
+            bool* p_focused = ImGui::GetStateStorage()->GetBoolRef(focus_id, false);
+            if (!*p_focused)
+            {
+                ImGui::SetKeyboardFocusHere(0);
+                *p_focused = true;
+            }
+
+            if (ImGui::InputText("##NameInput", &name, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_EnterReturnsTrue))
+            {
+                out.rename_submitted = true;
+            }
+            if (ImGui::IsItemDeactivated())
+            {
+                out.rename_submitted = true;
+            }
+
+            ImGui::PopID();
+            ImGui::PopStyleColor();
+            ImGui::PopStyleVar();
+        }
+        else
+        {
+            ImGui::PushID("rename_field");
+            ImGui::GetStateStorage()->SetBool(ImGui::GetID("rename_focus"), false);
+            ImGui::PopID();
+
+            ImGui::SetCursorScreenPos(full_row_bb.Min);
+            ImGui::InvisibleButton(str_id, full_row_bb.GetSize());
+            
+            if (ImGui::IsItemHovered())
+            {
+                if (ImGui::IsMouseClicked(ImGuiMouseButton_Right)) 
+                    out.right_clicked = true;
+
+                if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && ImGui::IsMouseHoveringRect(text_bb.Min, text_bb.Max)) 
+                    out.name_double_clicked = true;
+            }
+            
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left) && !ImGui::IsMouseHoveringRect(eye_bb.Min, eye_bb.Max)) 
+            {
+                out.clicked = true;
+            }
+
+            ImVec2 text_pos(text_start_x, pos.y + (row_height - ImGui::GetFontSize()) * 0.5f);
+            draw_list->AddText(text_pos, ImGui::GetColorU32(ImGuiCol_Text), name.c_str());
+        }
+
+        return out;
     }
 }

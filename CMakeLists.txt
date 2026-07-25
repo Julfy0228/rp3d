@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(VoxelModeler LANGUAGES CXX)
+project(VoxelModeler LANGUAGES C CXX)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
@@ -39,15 +39,15 @@ set(APP_SOURCES
     src/main.cpp
     src/EditorApp.cpp
     src/panels/PropertiesPanel.cpp
-    src/panels/SceneObjectsPanel.cpp
+    src/panels/ObjectsPanel.cpp
     src/panels/ScenePanel.cpp
     src/ViewportRenderer.cpp
     src/Widgets.cpp
+    src/Native.cpp
 )
 
 set(EXTERNAL_SOURCES
     external/glad/glad.c
-    
     external/imgui/imgui.cpp
     external/imgui/imgui_demo.cpp
     external/imgui/imgui_draw.cpp
@@ -69,6 +69,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     external/imgui
     external/imgui/backends
     external/ImGuizmo
+    external/icons
     ${earcuthpp_SOURCE_DIR}/include
 )
 

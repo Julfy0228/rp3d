@@ -5,7 +5,7 @@
 #include <Scene.h>
 
 class ViewportRenderer;
-class SceneObjectsPanel;
+class ObjectsPanel;
 class ScenePanel;
 class PropertiesPanel;
 
@@ -15,7 +15,7 @@ private:
     GLFWwindow* window = nullptr;
     Scene scene;
     ViewportRenderer* viewport_renderer = nullptr;
-    SceneObjectsPanel* scene_objects_panel = nullptr;
+    ObjectsPanel* scene_objects_panel = nullptr;
     ScenePanel* scene_panel = nullptr;
     PropertiesPanel* properties_panel = nullptr;
 

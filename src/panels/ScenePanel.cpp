@@ -1,14 +1,14 @@
 #include "ScenePanel.h"
-
 #include "ViewportRenderer.h"
 
-#include <algorithm>
-
 #include <imgui.h>
+#include <IconsLucide.h>
 
 void ScenePanel::draw(Scene& scene, ViewportRenderer* viewport_renderer)
 {
-    ImGui::Begin("Scene");
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+    ImGui::Begin(ICON_LC_GLOBE "Scene###ScenePanel");
+    ImGui::PopStyleVar();
 
     ImVec2 viewport_size = ImGui::GetContentRegionAvail();
     int viewport_width = std::max(1, static_cast<int>(viewport_size.x));
