@@ -32,6 +32,7 @@ void PropertiesPanel::draw(Scene& scene)
     {
         SceneNode* node = selected_nodes.front();
 
+        ImGui::Text("Transform");
         ImGui::DragInt3("Position", &node->position.x, 0.1f);
 
         if (ImGui::DragInt3("Rotation", &node->rotation.x))
@@ -42,16 +43,17 @@ void PropertiesPanel::draw(Scene& scene)
         {
             Item* item = static_cast<Item*>(node);
 
-            if (ImGui::DragInt3("Size", &item->size.x, 0.1f))
-                for (int i = 0; i < 3; ++i)
-                    if (item->size[i] < 0)
-                        item->size[i] = 0;
+            if (ImGui::DragInt("Thickness", &item->thickness, 0.1f))
+                if (item->thickness < 0) item->thickness = 0;
+            
+            ImGui::Spacing();
+            Widgets::ContourEdit("Contour", item->vertices);
 
+            ImGui::Spacing();
+            ImGui::Text("Color");
             glm::vec4 color_float = glm::vec4(item->color) / 255.0f;
-            if (ImGui::ColorEdit4("Color", &color_float.x, ImGuiColorEditFlags_Uint8))
+            if (ImGui::ColorEdit4("##Color", &color_float.x, ImGuiColorEditFlags_Uint8))
                 item->color = glm::u8vec4(color_float * 255.0f + 0.5f);
-
-            Widgets::ContourEdit("Contour", item->vertices, item->size.x, item->size.y);
         }
         else
         {

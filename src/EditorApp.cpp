@@ -107,13 +107,6 @@ void EditorApp::init_imgui()
 void EditorApp::run()
 {
     ImGuiIO& io = ImGui::GetIO();
-    
-    // Тест
-    auto item = scene.create_node<Item>();
-    item->name = "Cube";
-    item->selected = true;
-
-    scene.create_node<Item>();
 
     while (!glfwWindowShouldClose(window))
     {
@@ -149,17 +142,19 @@ void EditorApp::run()
 void EditorApp::draw()
 {
     draw_dockspace();
-    draw_objects();
-    draw_properties();
-    draw_scene();
+    draw_panels();
 }
 
-void EditorApp::draw_objects()
+void EditorApp::draw_panels()
 {
     if (scene_objects_panel)
-    {
         scene_objects_panel->draw(scene);
-    }
+
+    if (properties_panel)
+        properties_panel->draw(scene);
+    
+    if (scene_panel)
+        scene_panel->draw(scene, viewport_renderer);
 }
 
 void EditorApp::draw_dockspace()
@@ -195,18 +190,6 @@ void EditorApp::draw_dockspace()
     }
 
     ImGui::End();
-}
-
-void EditorApp::draw_properties()
-{
-    if (properties_panel)
-        properties_panel->draw(scene);
-}
-
-void EditorApp::draw_scene()
-{
-    if (scene_panel)
-        scene_panel->draw(scene, viewport_renderer);
 }
 
 EditorApp::~EditorApp()

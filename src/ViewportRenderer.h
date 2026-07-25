@@ -20,6 +20,7 @@ public:
         const Item* item = nullptr;
         glm::mat4 model = glm::mat4(1.0f);
         glm::vec4 color = glm::vec4(1.0f);
+        glm::vec3 pivot = glm::vec3(0.0f);
         glm::vec3 world_center = glm::vec3(0.0f);
     };
 
@@ -36,6 +37,7 @@ private:
     int height = 0;
     Camera camera;
 
+    glm::vec3 compute_item_pivot(const Item& item) const;
     bool load_shader_program(const char* vertex_path, const char* fragment_path);
     void ensure_viewport_resources(int width, int height);
     void ensure_mesh_resources();

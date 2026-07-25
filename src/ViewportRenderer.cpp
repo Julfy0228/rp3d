@@ -34,11 +34,6 @@ namespace
         Point2d point;
     };
 
-    glm::vec3 to_local_space(const glm::vec3& position)
-    {
-        return glm::vec3(position.x, -position.y, position.z);
-    }
-
     bool nearly_equal(double a, double b)
     {
         return std::abs(a - b) <= kEpsilon;
@@ -286,9 +281,9 @@ namespace
         const glm::vec3& b,
         const glm::vec3& c)
     {
-        glm::vec3 local_a = to_local_space(a);
-        glm::vec3 local_b = to_local_space(b);
-        glm::vec3 local_c = to_local_space(c);
+        glm::vec3 local_a = a;
+        glm::vec3 local_b = b;
+        glm::vec3 local_c = c;
         glm::vec3 normal = glm::normalize(glm::cross(local_b - local_a, local_c - local_a));
         unsigned int base = static_cast<unsigned int>(vertices.size());
         vertices.push_back({ local_a, normal });
@@ -431,15 +426,16 @@ void ViewportRenderer::ensure_mesh_resources()
     glBindVertexArray(0);
 }
 
-bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>& vertices, std::vector<unsigned int>& indices, glm::vec3& pivot) const
+glm::vec3 ViewportRenderer::compute_item_pivot(const Item& item) const
 {
-    if (item.vertices.size() < 3)
-        return false;
+    if (item.vertices.empty())
+        return glm::vec3(0.0f);
 
     int min_x = item.vertices[0].x;
     int max_x = item.vertices[0].x;
     int min_y = item.vertices[0].y;
     int max_y = item.vertices[0].y;
+
     for (const glm::i32vec2& point : item.vertices)
     {
         min_x = std::min(min_x, point.x);
@@ -448,32 +444,46 @@ bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>
         max_y = std::max(max_y, point.y);
     }
 
-    pivot = glm::vec3(
+    return glm::vec3(
         (static_cast<float>(min_x) + static_cast<float>(max_x)) * 0.5f,
         (static_cast<float>(min_y) + static_cast<float>(max_y)) * 0.5f,
-        static_cast<float>(std::max(0, item.size.z)) * 0.5f);
+        0.0f);
+}
 
-    const int height = std::max(0, item.size.z);
-    const size_t contour_count = item.vertices.size();
+bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>& vertices, std::vector<unsigned int>& indices, glm::vec3& pivot) const
+{
+    if (item.vertices.size() < 3)
+        return false;
+
+    const int height = std::max(0, item.thickness);
+    const float half_height = static_cast<float>(height) * 0.5f;
+
+    pivot = compute_item_pivot(item);
 
     std::vector<std::vector<Point2d>> loops = build_simple_loops(item.vertices);
+
     for (const std::vector<Point2d>& loop : loops)
     {
+        if (loop.size() < 3)
+            continue;
+
         std::vector<std::vector<std::array<double, 2>>> polygon(1);
         polygon[0].reserve(loop.size());
         for (const Point2d& point : loop)
-            polygon[0].push_back({ point.x, point.y });
+            polygon[0].push_back({ static_cast<double>(point.x), static_cast<double>(point.y) });
 
         std::vector<uint32_t> cap_indices = mapbox::earcut<uint32_t>(polygon);
+
         for (size_t i = 0; i + 2 < cap_indices.size(); i += 3)
         {
             const Point2d& a2 = loop[cap_indices[i]];
             const Point2d& b2 = loop[cap_indices[i + 1]];
             const Point2d& c2 = loop[cap_indices[i + 2]];
 
-            glm::vec3 a(static_cast<float>(a2.x), static_cast<float>(a2.y), 0.0f);
-            glm::vec3 b(static_cast<float>(b2.x), static_cast<float>(b2.y), 0.0f);
-            glm::vec3 c(static_cast<float>(c2.x), static_cast<float>(c2.y), 0.0f);
+            glm::vec3 a(static_cast<float>(a2.x), static_cast<float>(a2.y), height > 0 ? -half_height : 0.0f);
+            glm::vec3 b(static_cast<float>(b2.x), static_cast<float>(b2.y), height > 0 ? -half_height : 0.0f);
+            glm::vec3 c(static_cast<float>(c2.x), static_cast<float>(c2.y), height > 0 ? -half_height : 0.0f);
+
             if (height == 0)
                 append_triangle(vertices, indices, a, b, c);
             else
@@ -481,32 +491,34 @@ bool ViewportRenderer::build_item_mesh(const Item& item, std::vector<MeshVertex>
 
             if (height > 0)
             {
-                glm::vec3 a_top(a.x, a.y, static_cast<float>(height));
-                glm::vec3 b_top(b.x, b.y, static_cast<float>(height));
-                glm::vec3 c_top(c.x, c.y, static_cast<float>(height));
+                glm::vec3 a_top(a.x, a.y, half_height);
+                glm::vec3 b_top(b.x, b.y, half_height);
+                glm::vec3 c_top(c.x, c.y, half_height);
+
                 append_triangle(vertices, indices, a_top, b_top, c_top);
+            }
+        }
+
+        if (height > 0)
+        {
+            const size_t loop_count = loop.size();
+            for (size_t i = 0; i < loop_count; ++i)
+            {
+                size_t next = (i + 1) % loop_count;
+
+                glm::vec3 bottom_a(static_cast<float>(loop[i].x), static_cast<float>(loop[i].y), -half_height);
+                glm::vec3 bottom_b(static_cast<float>(loop[next].x), static_cast<float>(loop[next].y), -half_height);
+                glm::vec3 top_a(bottom_a.x, bottom_a.y, half_height);
+                glm::vec3 top_b(bottom_b.x, bottom_b.y, half_height);
+
+                append_triangle(vertices, indices, bottom_a, bottom_b, top_b);
+                append_triangle(vertices, indices, bottom_a, top_b, top_a);
             }
         }
     }
 
-    if (height > 0)
-    {
-        for (size_t i = 0; i < contour_count; ++i)
-        {
-            size_t next = (i + 1) % contour_count;
-
-            glm::vec3 bottom_a(static_cast<float>(item.vertices[i].x), static_cast<float>(item.vertices[i].y), 0.0f);
-            glm::vec3 bottom_b(static_cast<float>(item.vertices[next].x), static_cast<float>(item.vertices[next].y), 0.0f);
-            glm::vec3 top_a(bottom_a.x, bottom_a.y, static_cast<float>(height));
-            glm::vec3 top_b(bottom_b.x, bottom_b.y, static_cast<float>(height));
-
-            append_triangle(vertices, indices, bottom_a, bottom_b, top_b);
-            append_triangle(vertices, indices, bottom_a, top_b, top_a);
-        }
-    }
-
     for (MeshVertex& vertex : vertices)
-        vertex.position -= to_local_space(pivot);
+        vertex.position -= pivot;
 
     return !vertices.empty();
 }
@@ -522,8 +534,11 @@ glm::mat4 ViewportRenderer::build_node_transform(const SceneNode& node) const
 
 glm::mat4 ViewportRenderer::build_model_matrix(const Item& item, const glm::mat4& parent_transform, const glm::vec3& pivot) const
 {
-    (void)pivot;
-    return parent_transform * build_node_transform(item);
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(item.position) + pivot);
+    transform = glm::rotate(transform, glm::radians(static_cast<float>(item.rotation.z)), glm::vec3(0.0f, 0.0f, 1.0f));
+    transform = glm::rotate(transform, glm::radians(static_cast<float>(item.rotation.y)), glm::vec3(0.0f, 1.0f, 0.0f));
+    transform = glm::rotate(transform, glm::radians(static_cast<float>(item.rotation.x)), glm::vec3(1.0f, 0.0f, 0.0f));
+    return parent_transform * transform;
 }
 
 void ViewportRenderer::collect_items(const Group& group, const glm::mat4& parent_transform, std::vector<ItemRenderData>& items) const
@@ -543,7 +558,8 @@ void ViewportRenderer::collect_items(const Group& group, const glm::mat4& parent
         {
             ItemRenderData item_data;
             item_data.item = static_cast<const Item*>(child.get());
-            item_data.model = build_model_matrix(*item_data.item, group_transform, glm::vec3(0.0f));
+            item_data.pivot = compute_item_pivot(*item_data.item);
+            item_data.model = build_model_matrix(*item_data.item, group_transform, item_data.pivot);
             items.push_back(item_data);
         }
     }
@@ -593,7 +609,7 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
         const Item* item = item_data.item;
         std::vector<MeshVertex> vertices;
         std::vector<unsigned int> indices;
-        glm::vec3 pivot(0.0f);
+        glm::vec3 pivot = item_data.pivot;
         if (!build_item_mesh(*item, vertices, indices, pivot))
             continue;
 

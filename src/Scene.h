@@ -26,7 +26,7 @@ struct SceneNode
 struct Item : public SceneNode
 {
     std::vector<glm::i32vec2> vertices;
-    glm::i32vec3 size = glm::i32vec3(0);
+    int thickness = 8;
     glm::u8vec4 color = glm::u8vec4(255);
 
     Item()
@@ -38,7 +38,6 @@ struct Item : public SceneNode
             { side, side },
             { 0, side }
         };
-        size = glm::i32vec3(side);
     }
 };
 
