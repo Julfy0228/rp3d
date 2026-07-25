@@ -291,7 +291,7 @@ void ObjectsPanel::draw_node(Scene& scene, SceneNode* node, Group* parent, size_
 
 void ObjectsPanel::draw(Scene& scene)
 {
-    ImGui::Begin(ICON_LC_BOX "Objects###ObjectsPanel");
+    ImGui::Begin(ICON_LC_BOXES "Objects###ObjectsPanel");
 
     auto root_children = scene.root.children;
     for (size_t i = 0; i < root_children.size(); ++i)

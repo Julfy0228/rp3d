@@ -41,7 +41,7 @@ namespace Widgets
         ImGui::Text("%s", label);
 
         ImGui::PushItemWidth(120.0f);
-        if (ImGui::DragInt2("Size", &user_grid_size.x, 0.2f, 0, 512))
+        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 "Size", &user_grid_size.x, 0.2f, 0, 512))
         {
             if (user_grid_size.x < curr_width) user_grid_size.x = curr_width;
             if (user_grid_size.y < curr_height) user_grid_size.y = curr_height;
@@ -49,11 +49,13 @@ namespace Widgets
         ImGui::PopItemWidth();
 
         ImGui::SameLine();
-        if (ImGui::Button("Clear"))
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+        if (ImGui::Button(ICON_LC_ERASER "Clear"))
         {
             vertices.clear();
             value_changed = true;
         }
+        ImGui::PopStyleColor();
 
         int active_grid_x = std::max(user_grid_size.x, max_x);
         int active_grid_y = std::max(user_grid_size.y, max_y);
@@ -244,9 +246,9 @@ namespace Widgets
             }
         }
 
-        ImGui::TextDisabled("LMB: add/drag");
-        ImGui::TextDisabled("RMB: remove");
-        ImGui::TextDisabled("Ctrl+LMB: insert on edge");
+        ImGui::TextDisabled(ICON_LC_MOUSE_LEFT "add/drag");
+        ImGui::TextDisabled(ICON_LC_MOUSE_RIGHT "remove");
+        ImGui::TextDisabled("Ctrl+" ICON_LC_MOUSE_LEFT "insert on edge");
 
         ImGui::PopID();
         return value_changed;

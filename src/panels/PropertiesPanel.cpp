@@ -32,10 +32,10 @@ void PropertiesPanel::draw(Scene& scene)
     {
         SceneNode* node = selected_nodes.front();
 
-        ImGui::Text("Transform");
-        ImGui::DragInt3("Position", &node->position.x, 0.1f);
+        ImGui::Text(ICON_LC_SCAN "Transform");
+        ImGui::DragInt3(ICON_LC_MOVE_3D "Position", &node->position.x, 0.1f);
 
-        if (ImGui::DragInt3("Rotation", &node->rotation.x))
+        if (ImGui::DragInt3(ICON_LC_ROTATE_3D "Rotation", &node->rotation.x))
             for (int i = 0; i < 3; ++i)
                 node->rotation[i] = (node->rotation[i] % 360 + 360) % 360;
 
@@ -43,14 +43,14 @@ void PropertiesPanel::draw(Scene& scene)
         {
             Item* item = static_cast<Item*>(node);
 
-            if (ImGui::DragInt("Thickness", &item->thickness, 0.1f))
+            if (ImGui::DragInt(ICON_LC_SCALING "Thickness", &item->thickness, 0.1f))
                 if (item->thickness < 0) item->thickness = 0;
             
             ImGui::Spacing();
-            Widgets::ContourEdit("Contour", item->vertices);
+            Widgets::ContourEdit(ICON_LC_VECTOR_SQUARE "Contour", item->vertices);
 
             ImGui::Spacing();
-            ImGui::Text("Color");
+            ImGui::Text(ICON_LC_PIPETTE "Color");
             glm::vec4 color_float = glm::vec4(item->color) / 255.0f;
             if (ImGui::ColorEdit4("##Color", &color_float.x, ImGuiColorEditFlags_Uint8))
                 item->color = glm::u8vec4(color_float * 255.0f + 0.5f);
