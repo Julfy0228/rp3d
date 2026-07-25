@@ -2,6 +2,7 @@
 #include "Widgets.h"
 
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <IconsLucide.h>
 
 void PropertiesPanel::collect_selected(SceneNode* node, std::vector<SceneNode*>& selected_nodes)
@@ -33,9 +34,9 @@ void PropertiesPanel::draw(Scene& scene)
         SceneNode* node = selected_nodes.front();
 
         ImGui::Text(ICON_LC_SCAN "Transform");
-        ImGui::DragInt3(ICON_LC_MOVE_3D "Position", &node->position.x, 0.1f);
+        ImGui::DragInt3(ICON_LC_MOVE_3D "Position", &node->position.x, 0.1f, 0, 0, "%d", ImGuiSliderFlags_ColorMarkers);
 
-        if (ImGui::DragInt3(ICON_LC_ROTATE_3D "Rotation", &node->rotation.x))
+        if (ImGui::DragInt3(ICON_LC_ROTATE_3D "Rotation", &node->rotation.x, (1.0F), 0, 0, "%d", ImGuiSliderFlags_ColorMarkers))
             for (int i = 0; i < 3; ++i)
                 node->rotation[i] = (node->rotation[i] % 360 + 360) % 360;
 
@@ -43,6 +44,7 @@ void PropertiesPanel::draw(Scene& scene)
         {
             Item* item = static_cast<Item*>(node);
 
+            ImGui::SetNextItemColorMarker(IM_COL32(20,20,240,255));
             if (ImGui::DragInt(ICON_LC_SCALING "Thickness", &item->thickness, 0.1f))
                 if (item->thickness < 0) item->thickness = 0;
             

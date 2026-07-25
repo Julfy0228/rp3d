@@ -41,7 +41,7 @@ namespace Widgets
         ImGui::Text("%s", label);
 
         ImGui::PushItemWidth(120.0f);
-        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 "Size", &user_grid_size.x, 0.2f, 0, 512))
+        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 "Size", &user_grid_size.x, 0.2f, 0, 512, "%d", ImGuiSliderFlags_ColorMarkers))
         {
             if (user_grid_size.x < curr_width) user_grid_size.x = curr_width;
             if (user_grid_size.y < curr_height) user_grid_size.y = curr_height;
