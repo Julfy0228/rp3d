@@ -431,7 +431,7 @@ void ObjectsPanel::draw(Scene& scene)
 
     if (ImGui::BeginPopupContextWindow("PanelContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
     {
-        if (ImGui::MenuItem(ICON_LC_FILE_PLUS "AddItem"))
+        if (ImGui::MenuItem(ICON_LC_FILE_PLUS "Add cube"))
         {
             auto item = scene.create_node<Item>(&scene.root);
             item->name = generate_unique_name(scene, "Cube");
@@ -439,7 +439,7 @@ void ObjectsPanel::draw(Scene& scene)
             item->selected = true;
             rename_node_id = item->id;
         }
-        if (ImGui::MenuItem(ICON_LC_FOLDER_PLUS "AddGroup"))
+        if (ImGui::MenuItem(ICON_LC_FOLDER_PLUS "Add group"))
         {
             auto group = scene.create_node<Group>(&scene.root);
             group->name = generate_unique_name(scene, "Group");
