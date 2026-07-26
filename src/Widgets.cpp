@@ -20,6 +20,9 @@ namespace Widgets
         static glm::i32vec2 user_grid_size = glm::i32vec2(8, 8);
 
         int min_x = 0, max_x = 0, min_y = 0, max_y = 0;
+        int req_width = 1;
+        int req_height = 1;
+
         if (!vertices.empty())
         {
             min_x = max_x = vertices[0].x;
@@ -32,19 +35,40 @@ namespace Widgets
                 max_y = std::max(max_y, pt.y);
             }
             geometry_center = glm::vec2((min_x + max_x) * 0.5f, (min_y + max_y) * 0.5f);
+
+            req_width = std::max(1, max_x);
+            req_height = std::max(1, max_y);
         }
 
-        int curr_width = std::max(0, max_x - min_x);
-        int curr_height = std::max(0, max_y - min_y);
-
         ImGui::PushID(label);
+
+        static const void* last_vertices_key = nullptr;
+        const void* current_vertices_key = static_cast<const void*>(&vertices);
+        if (last_vertices_key != current_vertices_key)
+        {
+            last_vertices_key = current_vertices_key;
+            if (!vertices.empty())
+            {
+                user_grid_size.x = req_width;
+                user_grid_size.y = req_height;
+            }
+            else
+            {
+                user_grid_size = glm::i32vec2(8, 8);
+            }
+        }
+
+        user_grid_size.x = std::clamp(user_grid_size.x, req_width, 512);
+        user_grid_size.y = std::clamp(user_grid_size.y, req_height, 512);
+
         ImGui::Text("%s", label);
 
         ImGui::PushItemWidth(120.0f);
-        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 "Size", &user_grid_size.x, 0.2f, 0, 512, "%d", ImGuiSliderFlags_ColorMarkers))
+        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 "Size", &user_grid_size.x, 0.2f, req_width, 512, "%d", ImGuiSliderFlags_ColorMarkers))
         {
-            if (user_grid_size.x < curr_width) user_grid_size.x = curr_width;
-            if (user_grid_size.y < curr_height) user_grid_size.y = curr_height;
+            user_grid_size.x = std::clamp(user_grid_size.x, req_width, 512);
+            user_grid_size.y = std::clamp(user_grid_size.y, req_height, 512);
+            value_changed = true;
         }
         ImGui::PopItemWidth();
 
@@ -57,8 +81,8 @@ namespace Widgets
         }
         ImGui::PopStyleColor();
 
-        int active_grid_x = std::max(user_grid_size.x, max_x);
-        int active_grid_y = std::max(user_grid_size.y, max_y);
+        int active_grid_x = user_grid_size.x;
+        int active_grid_y = user_grid_size.y;
 
         if (active_grid_x > 0 && active_grid_y > 0)
         {
