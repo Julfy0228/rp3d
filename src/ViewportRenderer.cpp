@@ -10,6 +10,8 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <cstdint>
+#include <unordered_set>
 #include <vector>
 
 #include <mapbox/earcut.hpp>
@@ -21,6 +23,8 @@ namespace
 {
     constexpr double kEpsilon = 1e-6;
     constexpr double kTwoPi = 6.28318530717958647692;
+    constexpr std::uint64_t kFnvOffsetBasis = 1469598103934665603ull;
+    constexpr std::uint64_t kFnvPrime = 1099511628211ull;
 
     struct Point2d
     {
@@ -294,6 +298,12 @@ namespace
         indices.push_back(base + 2);
     }
 
+    void hash_u32(std::uint64_t& hash, std::uint32_t value)
+    {
+        hash ^= static_cast<std::uint64_t>(value);
+        hash *= kFnvPrime;
+    }
+
 }
 
 bool ViewportRenderer::init()
@@ -304,6 +314,8 @@ bool ViewportRenderer::init()
 
 void ViewportRenderer::shutdown()
 {
+    mesh_cache.clear();
+
     if (mesh_ebo != 0) glDeleteBuffers(1, &mesh_ebo);
     if (mesh_vbo != 0) glDeleteBuffers(1, &mesh_vbo);
     if (mesh_vao != 0) glDeleteVertexArrays(1, &mesh_vao);
@@ -321,6 +333,42 @@ void ViewportRenderer::shutdown()
     mesh_ebo = 0;
     width = 0;
     height = 0;
+}
+
+std::uint64_t ViewportRenderer::compute_item_mesh_signature(const Item& item) const
+{
+    std::uint64_t hash = kFnvOffsetBasis;
+    hash_u32(hash, static_cast<std::uint32_t>(item.thickness));
+    hash_u32(hash, static_cast<std::uint32_t>(item.vertices.size()));
+
+    for (const glm::i32vec2& point : item.vertices)
+    {
+        hash_u32(hash, static_cast<std::uint32_t>(point.x));
+        hash_u32(hash, static_cast<std::uint32_t>(point.y));
+    }
+
+    return hash;
+}
+
+const ViewportRenderer::CachedMesh* ViewportRenderer::get_cached_item_mesh(const Item& item) const
+{
+    const std::uint64_t signature = compute_item_mesh_signature(item);
+    auto cache_it = mesh_cache.find(item.id);
+    if (cache_it != mesh_cache.end() && cache_it->second.valid && cache_it->second.signature == signature)
+        return &cache_it->second;
+
+    auto [inserted_it, inserted] = mesh_cache.try_emplace(item.id);
+    CachedMesh& cache_entry = inserted_it->second;
+
+    cache_entry.vertices.clear();
+    cache_entry.indices.clear();
+    cache_entry.pivot = glm::vec3(0.0f);
+    cache_entry.signature = signature;
+    cache_entry.valid = build_item_mesh(item, cache_entry.vertices, cache_entry.indices, cache_entry.pivot);
+    if (!cache_entry.valid)
+        return nullptr;
+
+    return &cache_entry;
 }
 
 bool ViewportRenderer::load_shader_program(const char* vertex_path, const char* fragment_path)
@@ -581,8 +629,22 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
     collect_items(scene.root, glm::mat4(1.0f), items);
     if (items.empty())
     {
+        mesh_cache.clear();
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return;
+    }
+
+    std::unordered_set<int> live_item_ids;
+    live_item_ids.reserve(items.size());
+    for (const ItemRenderData& item_data : items)
+        live_item_ids.insert(item_data.item->id);
+
+    for (auto cache_it = mesh_cache.begin(); cache_it != mesh_cache.end();)
+    {
+        if (live_item_ids.find(cache_it->first) == live_item_ids.end())
+            cache_it = mesh_cache.erase(cache_it);
+        else
+            ++cache_it;
     }
 
     ensure_mesh_resources();
@@ -606,23 +668,20 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
 
     for (const ItemRenderData& item_data : items)
     {
-        const Item* item = item_data.item;
-        std::vector<MeshVertex> vertices;
-        std::vector<unsigned int> indices;
-        glm::vec3 pivot = item_data.pivot;
-        if (!build_item_mesh(*item, vertices, indices, pivot))
+        const CachedMesh* cached_mesh = get_cached_item_mesh(*item_data.item);
+        if (cached_mesh == nullptr)
             continue;
 
         glBindVertexArray(mesh_vao);
         glBindBuffer(GL_ARRAY_BUFFER, mesh_vbo);
-        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(vertices.size() * sizeof(MeshVertex)), vertices.data(), GL_DYNAMIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(cached_mesh->vertices.size() * sizeof(MeshVertex)), cached_mesh->vertices.data(), GL_DYNAMIC_DRAW);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ebo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(indices.size() * sizeof(unsigned int)), indices.data(), GL_DYNAMIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(cached_mesh->indices.size() * sizeof(unsigned int)), cached_mesh->indices.data(), GL_DYNAMIC_DRAW);
 
-        glm::vec4 color = glm::vec4(item->color) / 255.0f;
+        glm::vec4 color = glm::vec4(item_data.item->color) / 255.0f;
         glUniformMatrix4fv(model_location, 1, GL_FALSE, glm::value_ptr(item_data.model));
         glUniform4fv(color_location, 1, glm::value_ptr(color));
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, nullptr);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(cached_mesh->indices.size()), GL_UNSIGNED_INT, nullptr);
     }
 
     glBindVertexArray(0);
