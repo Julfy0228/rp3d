@@ -4,6 +4,7 @@
 #include "panels/ScenePanel.h"
 #include "ViewportRenderer.h"
 #include "Native.h"
+#include "Utils.h"
 
 #include <iostream>
 
@@ -14,7 +15,7 @@
 #include <ImGuizmo.h>
 #include <IconsLucide.h>
 
-void EditorApp::glfw_error_callback(int error, const char* description)
+void glfw_error_callback(int error, const char* description)
 {
     std::cerr << "GLFW Error " << error << ": " << description << std::endl;
 }
@@ -72,6 +73,7 @@ void EditorApp::init_imgui()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+    
 
     ImFontConfig font_config;
     font_config.OversampleH = 2;
@@ -102,6 +104,17 @@ void EditorApp::init_imgui()
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330");
+
+    ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
+    static void(*o_SetWindowTitle)(ImGuiViewport* vp, const char* title) = platform_io.Platform_SetWindowTitle;
+    if (o_SetWindowTitle != nullptr)
+    {
+        platform_io.Platform_SetWindowTitle = [](ImGuiViewport* vp, const char* title)
+        {
+            std::string clean_title = StripIcons(title);
+            o_SetWindowTitle(vp, clean_title.c_str());
+        };
+    }
 }
 
 void EditorApp::run()

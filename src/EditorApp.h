@@ -21,7 +21,6 @@ private:
     ScenePanel* scene_panel = nullptr;
     PropertiesPanel* properties_panel = nullptr;
 
-    static void glfw_error_callback(int error, const char* description);
     bool init_window();
     void init_imgui();
 

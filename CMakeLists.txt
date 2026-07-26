@@ -38,6 +38,7 @@ endif()
 set(APP_SOURCES
     src/main.cpp
     src/EditorApp.cpp
+    src/Utils.cpp
     src/UndoManager.cpp
     src/panels/PropertiesPanel.cpp
     src/panels/ObjectsPanel.cpp
