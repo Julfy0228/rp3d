@@ -3,8 +3,8 @@
 
 #include <algorithm>
 #include <memory>
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
 
 #include <imgui.h>
 #include <imgui_internal.h>
@@ -286,6 +286,22 @@ void ObjectsPanel::draw_node(Scene& scene, SceneNode* node, Group* parent, size_
     const char* icon = is_group ? (is_open ? ICON_LC_FOLDER_OPEN : ICON_LC_FOLDER) : ICON_LC_FILE;
 
     auto res = Widgets::SceneTreeNode("##tree_node", flags, is_open, icon, node->name);
+
+    if (is_group)
+    {
+        const Group* group = static_cast<const Group*>(node);
+        const std::string child_count_text = std::to_string(group->children.size());
+        const ImVec2 text_size = ImGui::CalcTextSize(child_count_text.c_str());
+        const ImVec2 item_min = ImGui::GetItemRectMin();
+        const ImVec2 item_max = ImGui::GetItemRectMax();
+        const float text_x = item_max.x - text_size.x - 8.0f;
+        const float text_y = item_min.y + (item_max.y - item_min.y - text_size.y) * 0.5f;
+
+        ImGui::GetWindowDrawList()->AddText(
+            ImVec2(text_x, text_y),
+            ImGui::GetColorU32(ImGuiCol_TextDisabled),
+            child_count_text.c_str());
+    }
 
     if (res.visibility_toggled)
     {
