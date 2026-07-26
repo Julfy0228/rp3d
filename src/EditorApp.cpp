@@ -117,6 +117,11 @@ void EditorApp::run()
         ImGui::NewFrame();
         ImGuizmo::BeginFrame();
 
+        if (io.KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_Z, false))
+            undo_manager.undo(scene);
+        if (io.KeyCtrl && (ImGui::IsKeyPressed(ImGuiKey_Y, false) || (io.KeyShift && ImGui::IsKeyPressed(ImGuiKey_Z, false))))
+            undo_manager.redo(scene);
+
         draw();
 
         ImGui::Render();
@@ -148,10 +153,10 @@ void EditorApp::draw()
 void EditorApp::draw_panels()
 {
     if (scene_objects_panel)
-        scene_objects_panel->draw(scene);
+        scene_objects_panel->draw(scene, &undo_manager);
 
     if (properties_panel)
-        properties_panel->draw(scene);
+        properties_panel->draw(scene, &undo_manager);
     
     if (scene_panel)
         scene_panel->draw(scene, viewport_renderer);
@@ -178,12 +183,22 @@ void EditorApp::draw_dockspace()
     ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
     if (ImGui::BeginMenuBar())
     {
+        const bool can_undo = undo_manager.can_undo();
+        const bool can_redo = undo_manager.can_redo();
+
         if (ImGui::BeginMenu("File"))
         {
             if (ImGui::MenuItem("Close", "Ctrl+W"))
-            {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
-            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Scene"))
+        {
+            if (ImGui::MenuItem("Undo", "Ctrl+Z"))
+                 undo_manager.undo(scene);
+            if (ImGui::MenuItem("Redo", "Ctrl+Y"))
+                 undo_manager.redo(scene);
             ImGui::EndMenu();
         }
         ImGui::EndMenuBar();

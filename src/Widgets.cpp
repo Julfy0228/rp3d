@@ -12,7 +12,11 @@
 
 namespace Widgets
 {
-    bool ContourEdit(const char* label, std::vector<glm::i32vec2>& vertices)
+    bool ContourEdit(
+        const char* label,
+        std::vector<glm::i32vec2>& vertices,
+        const std::function<void()>& on_edit_begin,
+        const std::function<void()>& on_edit_end)
     {
         bool value_changed = false;
         glm::vec2 geometry_center(0.0f, 0.0f);
@@ -43,10 +47,12 @@ namespace Widgets
         ImGui::PushID(label);
 
         static const void* last_vertices_key = nullptr;
+        static bool edit_in_progress = false;
         const void* current_vertices_key = static_cast<const void*>(&vertices);
         if (last_vertices_key != current_vertices_key)
         {
             last_vertices_key = current_vertices_key;
+            edit_in_progress = false;
             if (!vertices.empty())
             {
                 user_grid_size.x = req_width;
@@ -66,9 +72,21 @@ namespace Widgets
         ImGui::PushItemWidth(120.0f);
         if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 "Size", &user_grid_size.x, 0.2f, req_width, 512, "%d", ImGuiSliderFlags_ColorMarkers))
         {
+            if (!edit_in_progress)
+            {
+                edit_in_progress = true;
+                if (on_edit_begin)
+                    on_edit_begin();
+            }
             user_grid_size.x = std::clamp(user_grid_size.x, req_width, 512);
             user_grid_size.y = std::clamp(user_grid_size.y, req_height, 512);
             value_changed = true;
+        }
+        if (edit_in_progress && ImGui::IsItemDeactivatedAfterEdit())
+        {
+            edit_in_progress = false;
+            if (on_edit_end)
+                on_edit_end();
         }
         ImGui::PopItemWidth();
 
@@ -76,8 +94,12 @@ namespace Widgets
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
         if (ImGui::Button(ICON_LC_ERASER "Clear"))
         {
+            if (on_edit_begin)
+                on_edit_begin();
             vertices.clear();
             value_changed = true;
+            if (on_edit_end)
+                on_edit_end();
         }
         ImGui::PopStyleColor();
 
@@ -150,6 +172,12 @@ namespace Widgets
 
             if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
+                if (!edit_in_progress)
+                {
+                    edit_in_progress = true;
+                    if (on_edit_begin)
+                        on_edit_begin();
+                }
                 dragged_point_idx = -1;
                 for (int i = 0; i < static_cast<int>(vertices.size()); ++i)
                 {
@@ -211,9 +239,13 @@ namespace Widgets
                                     (io.MousePos.y - node_pos.y) * (io.MousePos.y - node_pos.y);
                     if (dist_sq <= (node_radius + 4.0f) * (node_radius + 4.0f))
                     {
+                        if (on_edit_begin)
+                            on_edit_begin();
                         vertices.erase(vertices.begin() + i);
                         value_changed = true;
                         dragged_point_idx = -1;
+                        if (on_edit_end)
+                            on_edit_end();
                         break;
                     }
                 }
@@ -230,7 +262,15 @@ namespace Widgets
             }
 
             if (ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+            {
+                if (edit_in_progress)
+                {
+                    edit_in_progress = false;
+                    if (on_edit_end)
+                        on_edit_end();
+                }
                 dragged_point_idx = -1;
+            }
 
             if (vertices.size() >= 2)
             {

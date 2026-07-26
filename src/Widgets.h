@@ -2,11 +2,16 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 #include <glm/vec2.hpp>
 
 namespace Widgets
 {
-    bool ContourEdit(const char* label, std::vector<glm::i32vec2>& vertices);
+    bool ContourEdit(
+        const char* label,
+        std::vector<glm::i32vec2>& vertices,
+        const std::function<void()>& on_edit_begin = {},
+        const std::function<void()>& on_edit_end = {});
 
     struct SceneTreeNodeFlags
     {

@@ -3,6 +3,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <Scene.h>
+#include <UndoManager.h>
 
 class ViewportRenderer;
 class ObjectsPanel;
@@ -14,6 +15,7 @@ class EditorApp
 private:
     GLFWwindow* window = nullptr;
     Scene scene;
+    UndoManager undo_manager;
     ViewportRenderer* viewport_renderer = nullptr;
     ObjectsPanel* scene_objects_panel = nullptr;
     ScenePanel* scene_panel = nullptr;
