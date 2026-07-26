@@ -605,7 +605,7 @@ glm::mat4 ViewportRenderer::build_node_transform(const SceneNode& node) const
 
 glm::mat4 ViewportRenderer::build_model_matrix(const Item& item, const glm::mat4& parent_transform, const glm::vec3& pivot) const
 {
-    glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(item.position) + pivot);
+    glm::mat4 transform = glm::translate(glm::mat4(1.0f), glm::vec3(item.position));
     transform = glm::rotate(transform, glm::radians(static_cast<float>(item.rotation.z)), glm::vec3(0.0f, 0.0f, 1.0f));
     transform = glm::rotate(transform, glm::radians(static_cast<float>(item.rotation.y)), glm::vec3(0.0f, 1.0f, 0.0f));
     transform = glm::rotate(transform, glm::radians(static_cast<float>(item.rotation.x)), glm::vec3(1.0f, 0.0f, 0.0f));
