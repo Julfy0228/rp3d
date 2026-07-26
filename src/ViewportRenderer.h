@@ -2,6 +2,7 @@
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
+#include <optional>
 #include <imgui.h>
 
 #include <cstdint>
@@ -49,6 +50,7 @@ private:
     int height = 0;
     Camera camera;
     mutable std::unordered_map<int, CachedMesh> mesh_cache;
+    std::optional<glm::vec2> selection_center_screen_position;
 
     std::uint64_t compute_item_mesh_signature(const Item& item) const;
     const CachedMesh* get_cached_item_mesh(const Item& item) const;
@@ -66,4 +68,5 @@ public:
     void shutdown();
     void render(const Scene& scene, int width, int height);
     ImTextureID get_texture_id() const;
+    std::optional<glm::vec2> get_selection_center_screen_position() const;
 };

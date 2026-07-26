@@ -11,6 +11,7 @@
 #include <sstream>
 #include <string>
 #include <cstdint>
+#include <optional>
 #include <unordered_set>
 #include <vector>
 
@@ -304,6 +305,27 @@ namespace
         hash *= kFnvPrime;
     }
 
+    void collect_selected_roots_for_viewport(const Group& group, std::vector<const SceneNode*>& selected_nodes, bool ancestor_selected)
+    {
+        for (const auto& child : group.children)
+        {
+            if (!child || !child->visible)
+                continue;
+
+            const bool child_selected = child->selected;
+            if (child_selected && !ancestor_selected)
+                selected_nodes.push_back(child.get());
+
+            if (child->is_group())
+            {
+                collect_selected_roots_for_viewport(
+                    *static_cast<const Group*>(child.get()),
+                    selected_nodes,
+                    ancestor_selected || child_selected);
+            }
+        }
+    }
+
 }
 
 bool ViewportRenderer::init()
@@ -315,6 +337,7 @@ bool ViewportRenderer::init()
 void ViewportRenderer::shutdown()
 {
     mesh_cache.clear();
+    selection_center_screen_position.reset();
 
     if (mesh_ebo != 0) glDeleteBuffers(1, &mesh_ebo);
     if (mesh_vbo != 0) glDeleteBuffers(1, &mesh_vbo);
@@ -608,6 +631,7 @@ void ViewportRenderer::collect_items(const Group& group, const glm::mat4& parent
             item_data.item = static_cast<const Item*>(child.get());
             item_data.pivot = compute_item_pivot(*item_data.item);
             item_data.model = build_model_matrix(*item_data.item, group_transform, item_data.pivot);
+            item_data.world_center = glm::vec3(item_data.model[3]);
             items.push_back(item_data);
         }
     }
@@ -615,6 +639,8 @@ void ViewportRenderer::collect_items(const Group& group, const glm::mat4& parent
 
 void ViewportRenderer::render(const Scene& scene, int target_width, int target_height)
 {
+    selection_center_screen_position.reset();
+
     ensure_viewport_resources(target_width, target_height);
     if (framebuffer == 0 || shader_program == 0)
         return;
@@ -658,6 +684,79 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
     glm::mat4 view = glm::lookAt(eye, target, glm::vec3(0.0f, 0.0f, 1.0f));
     glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
 
+    std::vector<const SceneNode*> selected_nodes;
+    collect_selected_roots_for_viewport(scene.root, selected_nodes, false);
+    if (!selected_nodes.empty())
+    {
+        glm::vec3 world_sum(0.0f);
+        int world_count = 0;
+        for (const SceneNode* node : selected_nodes)
+        {
+            if (!node->is_group())
+            {
+                auto item_it = std::find_if(items.begin(), items.end(), [node](const ItemRenderData& item_data)
+                {
+                    return item_data.item == node;
+                });
+                if (item_it != items.end())
+                {
+                    world_sum += item_it->world_center;
+                    ++world_count;
+                }
+            }
+            else
+            {
+                const Group* selected_group = static_cast<const Group*>(node);
+                glm::mat4 group_model = build_node_transform(*selected_group);
+                Group* parent_group = nullptr;
+
+                auto find_parent_transform = [&](auto& self, const Group& group, const glm::mat4& parent_transform) -> bool
+                {
+                    glm::mat4 group_transform = parent_transform;
+                    if (group.id != 0)
+                        group_transform = parent_transform * build_node_transform(group);
+
+                    for (const auto& child : group.children)
+                    {
+                        if (!child)
+                            continue;
+
+                        if (child.get() == selected_group)
+                        {
+                            group_model = group_transform * build_node_transform(*selected_group);
+                            return true;
+                        }
+
+                        if (child->is_group() && self(self, *static_cast<const Group*>(child.get()), group_transform))
+                            return true;
+                    }
+
+                    return false;
+                };
+
+                find_parent_transform(find_parent_transform, scene.root, glm::mat4(1.0f));
+                world_sum += glm::vec3(group_model[3]);
+                ++world_count;
+            }
+        }
+
+        if (world_count > 0)
+        {
+            const glm::vec3 selection_world_center = world_sum / static_cast<float>(world_count);
+            const glm::vec4 clip = projection * view * glm::vec4(selection_world_center, 1.0f);
+            if (clip.w > 0.0f)
+            {
+                const glm::vec3 ndc = glm::vec3(clip) / clip.w;
+                if (ndc.z >= -1.0f && ndc.z <= 1.0f)
+                {
+                    selection_center_screen_position = glm::vec2(
+                        (ndc.x * 0.5f + 0.5f) * static_cast<float>(target_width),
+                        (1.0f - (ndc.y * 0.5f + 0.5f)) * static_cast<float>(target_height));
+                }
+            }
+        }
+    }
+
     glUseProgram(shader_program);
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "uView"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
@@ -691,4 +790,9 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
 ImTextureID ViewportRenderer::get_texture_id() const
 {
     return static_cast<ImTextureID>(color_texture);
+}
+
+std::optional<glm::vec2> ViewportRenderer::get_selection_center_screen_position() const
+{
+    return selection_center_screen_position;
 }

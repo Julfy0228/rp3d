@@ -26,6 +26,16 @@ void ScenePanel::draw(Scene& scene, ViewportRenderer* viewport_renderer)
             ImVec2(static_cast<float>(viewport_width), static_cast<float>(viewport_height)),
             ImVec2(0.0f, 1.0f),
             ImVec2(1.0f, 0.0f));
+
+        if (std::optional<glm::vec2> marker_position = viewport_renderer->get_selection_center_screen_position())
+        {
+            const ImVec2 image_min = ImGui::GetItemRectMin();
+            const ImVec2 center_pos(image_min.x + marker_position->x, image_min.y + marker_position->y);
+            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            draw_list->AddCircleFilled(center_pos, 4.0f, IM_COL32(120, 255, 120, 255));
+            draw_list->AddLine(ImVec2(center_pos.x - 8.0f, center_pos.y), ImVec2(center_pos.x + 8.0f, center_pos.y), IM_COL32(120, 255, 120, 220), 1.5f);
+            draw_list->AddLine(ImVec2(center_pos.x, center_pos.y - 8.0f), ImVec2(center_pos.x, center_pos.y + 8.0f), IM_COL32(120, 255, 120, 220), 1.5f);
+        }
     }
     else
     {

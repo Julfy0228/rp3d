@@ -5,12 +5,15 @@
 #include <imgui_internal.h>
 #include <IconsLucide.h>
 
-void PropertiesPanel::collect_selected(SceneNode* node, std::vector<SceneNode*>& selected_nodes)
+#include <algorithm>
+
+void PropertiesPanel::collect_selected_roots(SceneNode* node, std::vector<SceneNode*>& selected_nodes, bool ancestor_selected)
 {
     if (!node)
         return;
 
-    if (node->selected)
+    const bool node_selected = node->selected;
+    if (node_selected && !ancestor_selected)
         selected_nodes.push_back(node);
 
     if (!node->is_group())
@@ -18,7 +21,23 @@ void PropertiesPanel::collect_selected(SceneNode* node, std::vector<SceneNode*>&
 
     Group* group = static_cast<Group*>(node);
     for (auto& child : group->children)
-        collect_selected(child.get(), selected_nodes);
+        collect_selected_roots(child.get(), selected_nodes, ancestor_selected || node_selected);
+}
+
+glm::i32vec3 PropertiesPanel::compute_selection_center(const std::vector<SceneNode*>& selected_roots) const
+{
+    if (selected_roots.empty())
+        return glm::i32vec3(0);
+
+    glm::vec3 sum(0.0f);
+    for (SceneNode* node : selected_roots)
+        sum += glm::vec3(node->position);
+
+    const glm::vec3 average = sum / static_cast<float>(selected_roots.size());
+    return glm::i32vec3(
+        static_cast<int>(average.x >= 0.0f ? average.x + 0.5f : average.x - 0.5f),
+        static_cast<int>(average.y >= 0.0f ? average.y + 0.5f : average.y - 0.5f),
+        static_cast<int>(average.z >= 0.0f ? average.z + 0.5f : average.z - 0.5f));
 }
 
 void PropertiesPanel::draw(Scene& scene)
@@ -27,7 +46,7 @@ void PropertiesPanel::draw(Scene& scene)
 
     std::vector<SceneNode*> selected_nodes;
     for (auto& child : scene.root.children)
-        collect_selected(child.get(), selected_nodes);
+        collect_selected_roots(child.get(), selected_nodes, false);
 
     if (selected_nodes.size() == 1)
     {
@@ -65,7 +84,15 @@ void PropertiesPanel::draw(Scene& scene)
     else if (selected_nodes.size() > 1)
     {
         ImGui::Text("%d items selected", (int)selected_nodes.size());
-        // TODO: Сделать групповое смещение
+
+        glm::i32vec3 selection_center = compute_selection_center(selected_nodes);
+        glm::i32vec3 previous_center = selection_center;
+        if (ImGui::DragInt3(ICON_LC_MOVE_3D "Position", &selection_center.x, 0.1f, 0, 0, "%d", ImGuiSliderFlags_ColorMarkers))
+        {
+            const glm::i32vec3 delta = selection_center - previous_center;
+            for (SceneNode* node : selected_nodes)
+                node->position += delta;
+        }
     }
 
     ImGui::End();

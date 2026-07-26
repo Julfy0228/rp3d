@@ -50,6 +50,89 @@ void ObjectsPanel::clear_selection(SceneNode* node)
     }
 }
 
+void ObjectsPanel::clear_descendant_selection(SceneNode* node)
+{
+    if (!node || !node->is_group())
+        return;
+
+    auto* group = static_cast<Group*>(node);
+    for (auto& child : group->children)
+    {
+        clear_selection(child.get());
+    }
+}
+
+Group* ObjectsPanel::find_parent(Group& root, const SceneNode* node) const
+{
+    for (auto& child : root.children)
+    {
+        if (!child)
+            continue;
+
+        if (child.get() == node)
+            return &root;
+
+        if (child->is_group())
+        {
+            if (Group* parent = find_parent(*static_cast<Group*>(child.get()), node))
+                return parent;
+        }
+    }
+
+    return nullptr;
+}
+
+bool ObjectsPanel::selection_has_same_parent(const Group& root, const SceneNode* node) const
+{
+    Group* node_parent = find_parent(const_cast<Group&>(root), node);
+    bool has_selection = false;
+
+    auto validate = [&](auto& self, const Group& group) -> bool {
+        for (const auto& child : group.children)
+        {
+            if (!child)
+                continue;
+
+            if (child->selected)
+            {
+                has_selection = true;
+                Group* selected_parent = find_parent(const_cast<Group&>(root), child.get());
+                if (selected_parent != node_parent)
+                    return false;
+            }
+
+            if (child->is_group() && !self(self, *static_cast<const Group*>(child.get())))
+                return false;
+        }
+
+        return true;
+    };
+
+    const bool valid = validate(validate, root);
+    return !has_selection || valid;
+}
+
+bool ObjectsPanel::has_selected_ancestor(const Group& group, const SceneNode* node) const
+{
+    for (const auto& child : group.children)
+    {
+        if (!child)
+            continue;
+
+        if (child.get() == node)
+            return false;
+
+        if (child->is_group())
+        {
+            auto* child_group = static_cast<const Group*>(child.get());
+            if (is_descendant_of(child_group, node))
+                return child->selected || has_selected_ancestor(*child_group, node);
+        }
+    }
+
+    return false;
+}
+
 bool ObjectsPanel::is_descendant_of(const Group* candidate, const SceneNode* node) const
 {
     if (!candidate || !node) return false;
@@ -220,8 +303,24 @@ void ObjectsPanel::draw_node(Scene& scene, SceneNode* node, Group* parent, size_
         if (rename_node_id != -1 && rename_node_id != node->id)
             rename_node_id = -1;
 
-        clear_selection(&scene.root);
-        node->selected = true;
+        if (ImGui::GetIO().KeyCtrl)
+        {
+            if (!node->selected)
+            {
+                if (!has_selected_ancestor(scene.root, node) && selection_has_same_parent(scene.root, node))
+                {
+                    node->selected = true;
+                    clear_descendant_selection(node);
+                }
+            }
+            else
+                node->selected = false;
+        }
+        else
+        {
+            clear_selection(&scene.root);
+            node->selected = true;
+        }
     }
 
     if (res.right_clicked)
@@ -301,6 +400,9 @@ void ObjectsPanel::draw(Scene& scene)
 
     ImGui::Spacing();
     ImGui::Dummy(ImGui::GetContentRegionAvail());
+    if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
+        clear_selection(&scene.root);
+
     if (ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("SCENE_NODE"))
