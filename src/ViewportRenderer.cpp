@@ -1,4 +1,5 @@
 #include "ViewportRenderer.h"
+#include <Colors.h>
 
 #include <algorithm>
 #include <cmath>
@@ -331,7 +332,9 @@ namespace
 bool ViewportRenderer::init()
 {
     glEnable(GL_DEPTH_TEST);
-    return load_shader_program("assets/shaders/scene.vert", "assets/shaders/scene.frag");
+    bool ok = load_shader_program("assets/shaders/scene.vert", "assets/shaders/scene.frag", shader_program);
+    ok &= load_shader_program("assets/shaders/grid.vert",  "assets/shaders/grid.frag",  grid_shader_program);
+    return ok;
 }
 
 void ViewportRenderer::shutdown()
@@ -343,6 +346,10 @@ void ViewportRenderer::shutdown()
     if (mesh_vbo != 0) glDeleteBuffers(1, &mesh_vbo);
     if (mesh_vao != 0) glDeleteVertexArrays(1, &mesh_vao);
     if (shader_program != 0) glDeleteProgram(shader_program);
+
+    if (grid_vao != 0) glDeleteVertexArrays(1, &grid_vao);
+    if (grid_shader_program != 0) glDeleteProgram(grid_shader_program);
+
     if (depth_renderbuffer != 0) glDeleteRenderbuffers(1, &depth_renderbuffer);
     if (color_texture != 0) glDeleteTextures(1, &color_texture);
     if (framebuffer != 0) glDeleteFramebuffers(1, &framebuffer);
@@ -354,6 +361,8 @@ void ViewportRenderer::shutdown()
     mesh_vao = 0;
     mesh_vbo = 0;
     mesh_ebo = 0;
+    grid_shader_program = 0;
+    grid_vao = 0;
     width = 0;
     height = 0;
 }
@@ -394,7 +403,7 @@ const ViewportRenderer::CachedMesh* ViewportRenderer::get_cached_item_mesh(const
     return &cache_entry;
 }
 
-bool ViewportRenderer::load_shader_program(const char* vertex_path, const char* fragment_path)
+bool ViewportRenderer::load_shader_program(const char* vertex_path, const char* fragment_path, GLuint& out_program)
 {
     std::string vertex_source = read_text_file(vertex_path);
     std::string fragment_source = read_text_file(fragment_path);
@@ -413,26 +422,26 @@ bool ViewportRenderer::load_shader_program(const char* vertex_path, const char* 
         return false;
     }
 
-    shader_program = glCreateProgram();
-    glAttachShader(shader_program, vertex_shader);
-    glAttachShader(shader_program, fragment_shader);
-    glLinkProgram(shader_program);
+    out_program = glCreateProgram();
+    glAttachShader(out_program, vertex_shader);
+    glAttachShader(out_program, fragment_shader);
+    glLinkProgram(out_program);
 
     glDeleteShader(vertex_shader);
     glDeleteShader(fragment_shader);
 
     GLint success = GL_FALSE;
-    glGetProgramiv(shader_program, GL_LINK_STATUS, &success);
+    glGetProgramiv(out_program, GL_LINK_STATUS, &success);
     if (success == GL_TRUE)
         return true;
 
     GLint log_length = 0;
-    glGetProgramiv(shader_program, GL_INFO_LOG_LENGTH, &log_length);
+    glGetProgramiv(out_program, GL_INFO_LOG_LENGTH, &log_length);
     std::string log(static_cast<size_t>(log_length), '\0');
-    glGetProgramInfoLog(shader_program, log_length, nullptr, log.data());
+    glGetProgramInfoLog(out_program, log_length, nullptr, log.data());
     std::cerr << "Program link failed: " << log << std::endl;
-    glDeleteProgram(shader_program);
-    shader_program = 0;
+    glDeleteProgram(out_program);
+    out_program = 0;
     return false;
 }
 
@@ -637,6 +646,41 @@ void ViewportRenderer::collect_items(const Group& group, const glm::mat4& parent
     }
 }
 
+void ViewportRenderer::ensure_grid_resources()
+{
+    if (grid_vao != 0)
+        return;
+
+    glGenVertexArrays(1, &grid_vao);
+}
+
+void ViewportRenderer::render_grid(const glm::mat4& view, const glm::mat4& projection)
+{
+    if (!grid_visible || grid_shader_program == 0)
+        return;
+
+    ensure_grid_resources();
+
+    glUseProgram(grid_shader_program);
+    glUniformMatrix4fv(glGetUniformLocation(grid_shader_program, "uView"),       1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(grid_shader_program, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform1f(glGetUniformLocation(grid_shader_program, "uCellSize"),      grid_cell_size);
+    glUniform1f(glGetUniformLocation(grid_shader_program, "uFadeDistance"),  grid_cell_size * 80.0f);
+    glUniform4fv(glGetUniformLocation(grid_shader_program, "uGridColorMinor"), 1, glm::value_ptr(Colors::ViewportGridMinor));
+    glUniform4fv(glGetUniformLocation(grid_shader_program, "uGridColorMajor"), 1, glm::value_ptr(Colors::ViewportGridMajor));
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_DEPTH_TEST);
+    glDepthMask(GL_TRUE);
+
+    glBindVertexArray(grid_vao);
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+    glBindVertexArray(0);
+
+    glDisable(GL_BLEND);
+}
+
 void ViewportRenderer::render(const Scene& scene, int target_width, int target_height)
 {
     selection_center_screen_position.reset();
@@ -656,6 +700,16 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
     if (items.empty())
     {
         mesh_cache.clear();
+
+        glm::vec3 target_pt = camera.target;
+        glm::vec3 eye_empty(
+            target_pt.x + std::cos(camera.yaw) * std::cos(camera.pitch) * camera.distance,
+            target_pt.y + std::sin(camera.yaw) * std::cos(camera.pitch) * camera.distance,
+            target_pt.z + std::sin(camera.pitch) * camera.distance);
+        glm::mat4 view_empty  = glm::lookAt(eye_empty, target_pt, glm::vec3(0.0f, 0.0f, 1.0f));
+        glm::mat4 proj_empty  = glm::perspective(glm::radians(45.0f), static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
+        render_grid(view_empty, proj_empty);
+
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return;
     }
@@ -757,10 +811,17 @@ void ViewportRenderer::render(const Scene& scene, int target_width, int target_h
         }
     }
 
+    render_grid(view, projection);
+
     glUseProgram(shader_program);
-    glUniformMatrix4fv(glGetUniformLocation(shader_program, "uView"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(shader_program, "uView"),       1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(shader_program, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform3f(glGetUniformLocation(shader_program, "uLightDirection"), 0.45f, -0.35f, 0.82f);
+
+    const glm::vec3 light_dir_norm = glm::normalize(light_direction);
+    glUniform3fv(glGetUniformLocation(shader_program, "uLightDirection"), 1, glm::value_ptr(light_dir_norm));
+    glUniform3fv(glGetUniformLocation(shader_program, "uLightColor"),     1, glm::value_ptr(light_color));
+    glUniform3fv(glGetUniformLocation(shader_program, "uAmbientColor"),   1, glm::value_ptr(ambient_color));
+    glUniform3fv(glGetUniformLocation(shader_program, "uCameraPos"),      1, glm::value_ptr(eye));
 
     GLint model_location = glGetUniformLocation(shader_program, "uModel");
     GLint color_location = glGetUniformLocation(shader_program, "uColor");

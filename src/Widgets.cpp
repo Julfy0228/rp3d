@@ -13,6 +13,28 @@
 
 namespace Widgets
 {
+    void DrawCenterMarker(ImDrawList* draw_list, ImVec2 center_pos, float circle_radius, float cross_length)
+    {
+        ImU32 circle_col = ImGui::GetColorU32(Colors::GeomCenterA);
+        ImU32 cross_col  = ImGui::GetColorU32(Colors::GeomCenterB);
+
+        draw_list->AddCircleFilled(
+            ImVec2(center_pos.x + 0.5f, center_pos.y + 0.5f),
+            circle_radius,
+            circle_col
+        );
+        draw_list->AddLine(
+            ImVec2(center_pos.x - cross_length, center_pos.y),
+            ImVec2(center_pos.x + cross_length, center_pos.y),
+            cross_col, 2.0f
+        );
+        draw_list->AddLine(
+            ImVec2(center_pos.x, center_pos.y - cross_length),
+            ImVec2(center_pos.x, center_pos.y + cross_length),
+            cross_col, 2.0f
+        );
+    }
+
     bool ContourEdit(
     const char* label,
     std::vector<glm::i32vec2>& vertices,
@@ -332,29 +354,7 @@ namespace Widgets
             if (!vertices.empty())
             {
                 ImVec2 center_pos = GridToScreenFloat(geometry_center);
-
-                const float circle_radius = 6.0f;
-                const float cross_length = 8.0f;
-
-                ImU32 circle_col = ImGui::GetColorU32(Colors::GeomCenterA);
-                ImU32 cross_col  = ImGui::GetColorU32(Colors::GeomCenterB);
-
-                draw_list->AddCircleFilled(
-                    ImVec2(center_pos.x + .5f, center_pos.y + .5f), 
-                    circle_radius, 
-                    circle_col
-                );
-
-                draw_list->AddLine(
-                    ImVec2(center_pos.x - cross_length, center_pos.y), 
-                    ImVec2(center_pos.x + cross_length, center_pos.y), 
-                    cross_col, 2.0f
-                );
-                draw_list->AddLine(
-                    ImVec2(center_pos.x, center_pos.y - cross_length), 
-                    ImVec2(center_pos.x, center_pos.y + cross_length), 
-                    cross_col, 2.0f
-                );
+                DrawCenterMarker(draw_list, center_pos, 6.0f, 8.0f);
             }
         }
 

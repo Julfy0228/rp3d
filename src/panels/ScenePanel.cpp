@@ -1,17 +1,19 @@
 #include "ScenePanel.h"
 #include "ViewportRenderer.h"
+#include "Widgets.h"
 
+#include <algorithm>
 #include <imgui.h>
 #include <IconsLucide.h>
 
 void ScenePanel::draw(Scene& scene, ViewportRenderer* viewport_renderer)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-    ImGui::Begin(ICON_LC_GLOBE "Scene###ScenePanel");
+    ImGui::Begin(ICON_LC_GLOBE " Scene###ScenePanel");
     ImGui::PopStyleVar();
 
     ImVec2 viewport_size = ImGui::GetContentRegionAvail();
-    int viewport_width = std::max(1, static_cast<int>(viewport_size.x));
+    int viewport_width  = std::max(1, static_cast<int>(viewport_size.x));
     int viewport_height = std::max(1, static_cast<int>(viewport_size.y));
 
     if (viewport_renderer)
@@ -32,9 +34,7 @@ void ScenePanel::draw(Scene& scene, ViewportRenderer* viewport_renderer)
             const ImVec2 image_min = ImGui::GetItemRectMin();
             const ImVec2 center_pos(image_min.x + marker_position->x, image_min.y + marker_position->y);
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            draw_list->AddCircleFilled(center_pos, 4.0f, IM_COL32(120, 255, 120, 255));
-            draw_list->AddLine(ImVec2(center_pos.x - 8.0f, center_pos.y), ImVec2(center_pos.x + 8.0f, center_pos.y), IM_COL32(120, 255, 120, 220), 1.5f);
-            draw_list->AddLine(ImVec2(center_pos.x, center_pos.y - 8.0f), ImVec2(center_pos.x, center_pos.y + 8.0f), IM_COL32(120, 255, 120, 220), 1.5f);
+            Widgets::DrawCenterMarker(draw_list, center_pos);
         }
     }
     else

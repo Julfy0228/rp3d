@@ -4,9 +4,12 @@
 #include <string>
 #include <functional>
 #include <glm/vec2.hpp>
+#include <imgui.h>
 
 namespace Widgets
 {
+    void DrawCenterMarker(ImDrawList* draw_list, ImVec2 center_pos, float circle_radius = 4.0f, float cross_length = 8.0f);
+
     bool ContourEdit(
         const char* label,
         std::vector<glm::i32vec2>& vertices,
