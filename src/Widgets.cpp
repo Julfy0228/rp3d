@@ -9,14 +9,15 @@
 #include <imgui_internal.h>
 #include <imgui_stdlib.h>
 #include <IconsLucide.h>
+#include <Colors.h>
 
 namespace Widgets
 {
     bool ContourEdit(
-        const char* label,
-        std::vector<glm::i32vec2>& vertices,
-        const std::function<void()>& on_edit_begin,
-        const std::function<void()>& on_edit_end)
+    const char* label,
+    std::vector<glm::i32vec2>& vertices,
+    const std::function<void()>& on_edit_begin,
+    const std::function<void()>& on_edit_end)
     {
         bool value_changed = false;
         glm::vec2 geometry_center(0.0f, 0.0f);
@@ -70,7 +71,7 @@ namespace Widgets
         ImGui::Text("%s", label);
 
         ImGui::PushItemWidth(120.0f);
-        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 "Size", &user_grid_size.x, 0.2f, req_width, 512, "%d", ImGuiSliderFlags_ColorMarkers))
+        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 " Size", &user_grid_size.x, 0.2f, req_width, 512, "%d", ImGuiSliderFlags_ColorMarkers))
         {
             if (!edit_in_progress)
             {
@@ -91,8 +92,8 @@ namespace Widgets
         ImGui::PopItemWidth();
 
         ImGui::SameLine();
-        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
-        if (ImGui::Button(ICON_LC_ERASER "Clear"))
+        ImGui::PushStyleColor(ImGuiCol_Text, Colors::TextDanger);
+        if (ImGui::Button(ICON_LC_ERASER " Clear"))
         {
             if (on_edit_begin)
                 on_edit_begin();
@@ -108,7 +109,7 @@ namespace Widgets
 
         if (active_grid_x > 0 && active_grid_y > 0)
         {
-            const float padding = 8.0f;
+            const float padding = 12.0f;
             ImVec2 avail_sz = ImGui::GetContentRegionAvail();
             if (avail_sz.x < 50.0f) avail_sz.x = 50.0f;
 
@@ -119,8 +120,8 @@ namespace Widgets
             ImGuiIO& io = ImGui::GetIO();
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
-            draw_list->AddRectFilled(canvas_p, ImVec2(canvas_p.x + canvas_sz.x, canvas_p.y + canvas_sz.y), IM_COL32(30, 30, 35, 255));
-            draw_list->AddRect(canvas_p, ImVec2(canvas_p.x + canvas_sz.x, canvas_p.y + canvas_sz.y), IM_COL32(70, 70, 80, 255));
+            draw_list->AddRectFilled(canvas_p, ImVec2(canvas_p.x + canvas_sz.x, canvas_p.y + canvas_sz.y), ImGui::GetColorU32(ImGuiCol_ChildBg));
+            draw_list->AddRect(canvas_p, ImVec2(canvas_p.x + canvas_sz.x, canvas_p.y + canvas_sz.y), ImGui::GetColorU32(ImGuiCol_Border));
 
             ImGui::InvisibleButton("canvas", canvas_sz, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonRight);
             const bool is_hovered = ImGui::IsItemHovered();
@@ -153,18 +154,19 @@ namespace Widgets
 
             int step_x = std::max(1, active_grid_x / 16);
             int step_y = std::max(1, active_grid_y / 16);
+            ImU32 grid_col = ImGui::GetColorU32(Colors::GridLine);
 
             for (int x = 0; x <= active_grid_x; x += step_x)
             {
                 ImVec2 p1 = GridToScreen({x, 0});
                 ImVec2 p2 = GridToScreen({x, active_grid_y});
-                draw_list->AddLine(p1, p2, IM_COL32(50, 50, 60, 150));
+                draw_list->AddLine(p1, p2, grid_col);
             }
             for (int y = 0; y <= active_grid_y; y += step_y)
             {
                 ImVec2 p1 = GridToScreen({0, y});
                 ImVec2 p2 = GridToScreen({active_grid_x, y});
-                draw_list->AddLine(p1, p2, IM_COL32(50, 50, 60, 150));
+                draw_list->AddLine(p1, p2, grid_col);
             }
 
             static int dragged_point_idx = -1;
@@ -274,39 +276,85 @@ namespace Widgets
 
             if (vertices.size() >= 2)
             {
+                ImU32 line_col = ImGui::GetColorU32(Colors::PlotLine);
+                ImU32 closing_col = ImGui::GetColorU32(Colors::PlotLineClosing);
+
                 for (size_t i = 0; i < vertices.size() - 1; ++i)
                 {
                     ImVec2 p1 = GridToScreen(vertices[i]);
                     ImVec2 p2 = GridToScreen(vertices[i + 1]);
-                    draw_list->AddLine(p1, p2, IM_COL32(0, 220, 255, 255), 2.0f);
+                    draw_list->AddLine(p1, p2, line_col, 2.0f);
                 }
                 ImVec2 p_last = GridToScreen(vertices.back());
                 ImVec2 p_first = GridToScreen(vertices.front());
-                draw_list->AddLine(p_last, p_first, IM_COL32(0, 220, 255, 100), 1.5f);
+                draw_list->AddLine(p_last, p_first, closing_col, 1.5f);
             }
 
             for (int i = 0; i < static_cast<int>(vertices.size()); ++i)
             {
                 ImVec2 node_pos = GridToScreen(vertices[i]);
-                ImU32 col = (i == dragged_point_idx) ? IM_COL32(255, 255, 0, 255) : IM_COL32(255, 100, 100, 255);
+
+                bool is_node_hovered = is_hovered &&
+                    (std::abs(io.MousePos.x - node_pos.x) <= node_radius + 2.0f) &&
+                    (std::abs(io.MousePos.y - node_pos.y) <= node_radius + 2.0f);
+
+                ImU32 col;
+                if (i == dragged_point_idx)
+                    col = ImGui::GetColorU32(Colors::PlotPointActive);
+                else if (is_node_hovered)
+                    col = ImGui::GetColorU32(Colors::PlotPointHovered);
+                else
+                    col = ImGui::GetColorU32(Colors::PlotPoint);
 
                 draw_list->AddCircleFilled(node_pos, node_radius, col);
-                draw_list->AddCircle(node_pos, node_radius, IM_COL32(0, 0, 0, 255), 0, 1.5f);
+                draw_list->AddCircle(node_pos, node_radius, ImGui::GetColorU32(ImGuiCol_Border), 0, 1.5f);
 
-                if (i == dragged_point_idx || (is_hovered && std::abs(io.MousePos.x - node_pos.x) < 10 && std::abs(io.MousePos.y - node_pos.y) < 10))
+                if (i == dragged_point_idx || is_node_hovered)
                 {
                     char buf[32];
                     std::snprintf(buf, sizeof(buf), "(%d, %d)", vertices[i].x, vertices[i].y);
-                    draw_list->AddText(ImVec2(node_pos.x + 8, node_pos.y - 12), IM_COL32(255, 255, 255, 255), buf);
+                    
+                    ImVec2 txt_size = ImGui::CalcTextSize(buf);
+                    ImVec2 txt_pos = ImVec2(node_pos.x + 8.0f, node_pos.y - 14.0f);
+                    
+                    ImVec4 bg_color = ImGui::GetStyleColorVec4(ImGuiCol_PopupBg);
+                    bg_color.w = 0.85f;
+                    draw_list->AddRectFilled(
+                        ImVec2(txt_pos.x - 2.0f, txt_pos.y - 1.0f), 
+                        ImVec2(txt_pos.x + txt_size.x + 2.0f, txt_pos.y + txt_size.y + 1.0f), 
+                        ImGui::GetColorU32(bg_color), 2.0f
+                    );
+
+                    draw_list->AddText(txt_pos, ImGui::GetColorU32(ImGuiCol_Text), buf);
                 }
             }
 
             if (!vertices.empty())
             {
                 ImVec2 center_pos = GridToScreenFloat(geometry_center);
-                draw_list->AddCircleFilled(center_pos, 4.0f, IM_COL32(120, 255, 120, 255));
-                draw_list->AddLine(ImVec2(center_pos.x - 8.0f, center_pos.y), ImVec2(center_pos.x + 8.0f, center_pos.y), IM_COL32(120, 255, 120, 220), 1.5f);
-                draw_list->AddLine(ImVec2(center_pos.x, center_pos.y - 8.0f), ImVec2(center_pos.x, center_pos.y + 8.0f), IM_COL32(120, 255, 120, 220), 1.5f);
+
+                const float circle_radius = 6.0f;
+                const float cross_length = 8.0f;
+
+                ImU32 circle_col = ImGui::GetColorU32(Colors::GeomCenterA);
+                ImU32 cross_col  = ImGui::GetColorU32(Colors::GeomCenterB);
+
+                draw_list->AddCircleFilled(
+                    ImVec2(center_pos.x + .5f, center_pos.y + .5f), 
+                    circle_radius, 
+                    circle_col
+                );
+
+                draw_list->AddLine(
+                    ImVec2(center_pos.x - cross_length, center_pos.y), 
+                    ImVec2(center_pos.x + cross_length, center_pos.y), 
+                    cross_col, 2.0f
+                );
+                draw_list->AddLine(
+                    ImVec2(center_pos.x, center_pos.y - cross_length), 
+                    ImVec2(center_pos.x, center_pos.y + cross_length), 
+                    cross_col, 2.0f
+                );
             }
         }
 

@@ -43,6 +43,7 @@ set(APP_SOURCES
     src/panels/PropertiesPanel.cpp
     src/panels/ObjectsPanel.cpp
     src/panels/ScenePanel.cpp
+    src/panels/StylePanel.cpp
     src/ViewportRenderer.cpp
     src/Widgets.cpp
     src/Native.cpp

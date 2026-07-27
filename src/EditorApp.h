@@ -8,6 +8,7 @@
 class ViewportRenderer;
 class ObjectsPanel;
 class ScenePanel;
+class StylePanel;
 class PropertiesPanel;
 
 class EditorApp
@@ -17,8 +18,9 @@ private:
     Scene scene;
     UndoManager undo_manager;
     ViewportRenderer* viewport_renderer = nullptr;
-    ObjectsPanel* scene_objects_panel = nullptr;
+    ObjectsPanel* objects_panel = nullptr;
     ScenePanel* scene_panel = nullptr;
+    StylePanel* style_panel = nullptr;
     PropertiesPanel* properties_panel = nullptr;
 
     bool init_window();

@@ -11,6 +11,7 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <IconsLucide.h>
+#include <Colors.h>
 
 std::string ObjectsPanel::generate_unique_name(const Scene& scene, const std::string& prefix) const
 {
@@ -630,7 +631,7 @@ void ObjectsPanel::draw_context_menu(Scene& scene, SceneNode* node, Group* paren
                 paste_selected(scene);
             }
 
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.35f, 0.35f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_Text, Colors::TextDanger);
             if (ImGui::MenuItem(ICON_LC_TRASH_2 "Delete", "Del"))
             {
                 delete_selected(scene);

@@ -2,6 +2,7 @@
 #include "panels/PropertiesPanel.h"
 #include "panels/ObjectsPanel.h"
 #include "panels/ScenePanel.h"
+#include "panels/StylePanel.h"
 #include "ViewportRenderer.h"
 #include "Native.h"
 #include "Utils.h"
@@ -25,8 +26,9 @@ bool EditorApp::init()
     if (!init_window()) return false;
 
     init_imgui();
-    scene_objects_panel = new ObjectsPanel();
+    objects_panel = new ObjectsPanel();
     scene_panel = new ScenePanel();
+    style_panel = new StylePanel();
     properties_panel = new PropertiesPanel();
     viewport_renderer = new ViewportRenderer();
     if (!viewport_renderer->init()) return false;
@@ -74,7 +76,6 @@ void EditorApp::init_imgui()
     io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     
-
     ImFontConfig font_config;
     font_config.OversampleH = 2;
     font_config.OversampleV = 2;
@@ -141,7 +142,8 @@ void EditorApp::run()
         int w = 0, h = 0;
         glfwGetFramebufferSize(window, &w, &h);
         glViewport(0, 0, w, h);
-        glClearColor(0.03f, 0.03f, 0.04f, 1.0f);
+        auto clearColor = ImGui::GetStyleColorVec4(ImGuiCol_WindowBg);
+        glClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -165,14 +167,17 @@ void EditorApp::draw()
 
 void EditorApp::draw_panels()
 {
-    if (scene_objects_panel)
-        scene_objects_panel->draw(scene, &undo_manager);
+    if (objects_panel)
+        objects_panel->draw(scene, &undo_manager);
 
     if (properties_panel)
         properties_panel->draw(scene, &undo_manager);
     
     if (scene_panel)
         scene_panel->draw(scene, viewport_renderer);
+
+    if (style_panel)
+        style_panel->draw();
 }
 
 void EditorApp::draw_dockspace()
@@ -209,9 +214,16 @@ void EditorApp::draw_dockspace()
         if (ImGui::BeginMenu("Scene"))
         {
             if (ImGui::MenuItem("Undo", "Ctrl+Z"))
-                 undo_manager.undo(scene);
+                undo_manager.undo(scene);
             if (ImGui::MenuItem("Redo", "Ctrl+Y"))
-                 undo_manager.redo(scene);
+                undo_manager.redo(scene);
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("Misc"))
+        {
+            if (ImGui::MenuItem("Style editor"))
+                style_panel->show = !style_panel->show;
             ImGui::EndMenu();
         }
         ImGui::EndMenuBar();
@@ -227,10 +239,10 @@ EditorApp::~EditorApp()
 
 void EditorApp::shutdown()
 {
-    if (scene_objects_panel)
+    if (objects_panel)
     {
-        delete scene_objects_panel;
-        scene_objects_panel = nullptr;
+        delete objects_panel;
+        objects_panel = nullptr;
     }
 
     if (scene_panel)
