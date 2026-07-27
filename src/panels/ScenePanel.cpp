@@ -1,12 +1,36 @@
 #include "ScenePanel.h"
-#include "ViewportRenderer.h"
+#include "render/Renderer.h"
 #include "Widgets.h"
 
 #include <algorithm>
 #include <imgui.h>
 #include <IconsLucide.h>
 
-void ScenePanel::draw(Scene& scene, ViewportRenderer* viewport_renderer)
+ScenePanel::ScenePanel() = default;
+
+ScenePanel::~ScenePanel()
+{
+    shutdown();
+}
+
+bool ScenePanel::init()
+{
+    if (!renderer)
+        renderer = std::make_unique<Renderer>();
+
+    return renderer->init();
+}
+
+void ScenePanel::shutdown()
+{
+    if (!renderer)
+        return;
+
+    renderer->shutdown();
+    renderer.reset();
+}
+
+void ScenePanel::draw(Scene& scene)
 {
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
     ImGui::Begin(ICON_LC_GLOBE " Scene###ScenePanel");
@@ -16,20 +40,20 @@ void ScenePanel::draw(Scene& scene, ViewportRenderer* viewport_renderer)
     int viewport_width  = std::max(1, static_cast<int>(viewport_size.x));
     int viewport_height = std::max(1, static_cast<int>(viewport_size.y));
 
-    if (viewport_renderer)
+    if (renderer)
     {
-        viewport_renderer->render(scene, viewport_width, viewport_height);
+        renderer->render(scene, viewport_width, viewport_height);
     }
 
-    if (viewport_renderer && viewport_renderer->get_texture_id() != 0)
+    if (renderer && renderer->get_texture_id() != 0)
     {
         ImGui::Image(
-            viewport_renderer->get_texture_id(),
+            renderer->get_texture_id(),
             ImVec2(static_cast<float>(viewport_width), static_cast<float>(viewport_height)),
             ImVec2(0.0f, 1.0f),
             ImVec2(1.0f, 0.0f));
 
-        if (std::optional<glm::vec2> marker_position = viewport_renderer->get_selection_center_screen_position())
+        if (std::optional<glm::vec2> marker_position = renderer->get_selection_center_screen_position())
         {
             const ImVec2 image_min = ImGui::GetItemRectMin();
             const ImVec2 center_pos(image_min.x + marker_position->x, image_min.y + marker_position->y);

@@ -3,7 +3,6 @@
 #include "panels/ObjectsPanel.h"
 #include "panels/ScenePanel.h"
 #include "panels/StylePanel.h"
-#include "ViewportRenderer.h"
 #include "Native.h"
 #include "Utils.h"
 
@@ -28,10 +27,9 @@ bool EditorApp::init()
     init_imgui();
     objects_panel = new ObjectsPanel();
     scene_panel = new ScenePanel();
+    if (!scene_panel->init()) return false;
     style_panel = new StylePanel();
     properties_panel = new PropertiesPanel();
-    viewport_renderer = new ViewportRenderer();
-    if (!viewport_renderer->init()) return false;
 
     return true;
 }
@@ -174,7 +172,7 @@ void EditorApp::draw_panels()
         properties_panel->draw(scene, &undo_manager);
     
     if (scene_panel)
-        scene_panel->draw(scene, viewport_renderer);
+        scene_panel->draw(scene);
 
     if (style_panel)
         style_panel->draw();
@@ -247,6 +245,7 @@ void EditorApp::shutdown()
 
     if (scene_panel)
     {
+        scene_panel->shutdown();
         delete scene_panel;
         scene_panel = nullptr;
     }
@@ -255,13 +254,6 @@ void EditorApp::shutdown()
     {
         delete properties_panel;
         properties_panel = nullptr;
-    }
-
-    if (viewport_renderer)
-    {
-        viewport_renderer->shutdown();
-        delete viewport_renderer;
-        viewport_renderer = nullptr;
     }
 
     ImGui_ImplOpenGL3_Shutdown();

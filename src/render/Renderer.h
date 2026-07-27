@@ -11,7 +11,7 @@
 
 #include <Scene.h>
 
-class ViewportRenderer
+class Renderer
 {
 public:
     struct MeshVertex
@@ -67,7 +67,6 @@ private:
     std::uint64_t compute_item_mesh_signature(const Item& item) const;
     const CachedMesh* get_cached_item_mesh(const Item& item) const;
     glm::vec3 compute_item_pivot(const Item& item) const;
-    bool load_shader_program(const char* vertex_path, const char* fragment_path, GLuint& out_program);
     void ensure_viewport_resources(int width, int height);
     void ensure_mesh_resources();
     void ensure_grid_resources();

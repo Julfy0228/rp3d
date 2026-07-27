@@ -44,7 +44,10 @@ set(APP_SOURCES
     src/panels/ObjectsPanel.cpp
     src/panels/ScenePanel.cpp
     src/panels/StylePanel.cpp
-    src/ViewportRenderer.cpp
+    src/render/Renderer.cpp
+    src/render/MeshBuilder.cpp
+    src/render/SceneRenderData.cpp
+    src/render/Shaders.cpp
     src/Widgets.cpp
     src/Native.cpp
 )

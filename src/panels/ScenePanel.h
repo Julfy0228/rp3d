@@ -1,11 +1,20 @@
 #pragma once
 
 #include <Scene.h>
+#include <memory>
 
-class ViewportRenderer;
+class Renderer;
 
 class ScenePanel
 {
 public:
-    void draw(Scene& scene, ViewportRenderer* viewport_renderer);
+    ScenePanel();
+    ~ScenePanel();
+
+    bool init();
+    void shutdown();
+    void draw(Scene& scene);
+
+private:
+    std::unique_ptr<Renderer> renderer;
 };
