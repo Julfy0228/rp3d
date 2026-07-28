@@ -1,1 +1,1 @@
-wsl.exe bash -lc "cd /mnt/c/Users/julfy/source/repos/VoxelModeler2 && cmake -S . -B build-linux -G Ninja && cmake --build build-linux -j"
+wsl.exe bash -lc "cmake -S . -B build-linux -G Ninja && cmake --build build-linux -j"

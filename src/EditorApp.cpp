@@ -46,7 +46,7 @@ bool EditorApp::init_window()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    window = glfwCreateWindow(1280, 720, "VoxelModeler", nullptr, nullptr);
+    window = glfwCreateWindow(1280, 720, "rp3d", nullptr, nullptr);
     if (!window) {
         glfwTerminate();
         return false;

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.14)
-project(VoxelModeler LANGUAGES C CXX)
+project(rp3d LANGUAGES C CXX)
 
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 
