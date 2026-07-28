@@ -433,13 +433,17 @@ namespace Widgets
 
         if (flags.is_renaming)
         {
+            const ImVec2 custom_padding(2.0f, 1.0f);
             float input_w = full_row_bb.Max.x - text_start_x - 4.0f;
 
-            ImGui::SetCursorScreenPos(ImVec2(text_start_x, pos.y + (row_height - ImGui::GetFontSize()) * 0.5f - style.FramePadding.y));
+            float cursor_x = text_start_x - custom_padding.x;
+            float cursor_y = pos.y + (row_height - ImGui::GetFontSize()) * 0.5f - custom_padding.y;
+
+            ImGui::SetCursorScreenPos(ImVec2(cursor_x, cursor_y));
             ImGui::SetNextItemWidth(input_w);
 
-            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2.0f, 1.0f));
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImGui::GetColorU32(ImGuiCol_FrameBg));
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, custom_padding);
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, IM_COL32(0, 0, 0, 0));
 
             ImGui::PushID("rename_field");
             
