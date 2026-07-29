@@ -230,7 +230,7 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
             target_pt.y + std::sin(camera.yaw) * std::cos(camera.pitch) * camera.distance,
             target_pt.z + std::sin(camera.pitch) * camera.distance);
         glm::mat4 view_empty  = glm::lookAt(eye_empty, target_pt, glm::vec3(0.0f, 0.0f, 1.0f));
-        glm::mat4 proj_empty  = glm::perspective(glm::radians(45.0f), static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
+        glm::mat4 proj_empty  = glm::perspective(camera.fov, static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
         render_grid(view_empty, proj_empty);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -259,7 +259,7 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
         target.z + std::sin(camera.pitch) * camera.distance);
 
     glm::mat4 view = glm::lookAt(eye, target, glm::vec3(0.0f, 0.0f, 1.0f));
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
+    glm::mat4 projection = glm::perspective(camera.fov, static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
 
     std::vector<const SceneNode*> selected_nodes;
     render::collect_selected_roots_for_viewport(scene.root, selected_nodes, false);

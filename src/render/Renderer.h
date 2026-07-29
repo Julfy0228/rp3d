@@ -82,4 +82,7 @@ public:
     void render(const Scene& scene, int width, int height);
     ImTextureID get_texture_id() const;
     std::optional<glm::vec2> get_selection_center_screen_position() const;
+    
+    Camera& get_camera() { return camera; }
+    const Camera& get_camera() const { return camera; }
 };
