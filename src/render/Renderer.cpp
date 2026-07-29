@@ -224,13 +224,9 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
     {
         mesh_cache.clear();
 
-        glm::vec3 target_pt = camera.target;
-        glm::vec3 eye_empty(
-            target_pt.x + std::cos(camera.yaw) * std::cos(camera.pitch) * camera.distance,
-            target_pt.y + std::sin(camera.yaw) * std::cos(camera.pitch) * camera.distance,
-            target_pt.z + std::sin(camera.pitch) * camera.distance);
-        glm::mat4 view_empty  = glm::lookAt(eye_empty, target_pt, glm::vec3(0.0f, 0.0f, 1.0f));
-        glm::mat4 proj_empty  = glm::perspective(camera.fov, static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
+        glm::vec3 eye_empty = camera.get_eye_position();
+        glm::mat4 view_empty = camera.get_view_matrix();
+        glm::mat4 proj_empty = camera.get_projection_matrix(static_cast<float>(target_width) / static_cast<float>(target_height));
         render_grid(view_empty, proj_empty);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -252,14 +248,8 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
 
     ensure_mesh_resources();
 
-    glm::vec3 target = camera.target;
-    glm::vec3 eye(
-        target.x + std::cos(camera.yaw) * std::cos(camera.pitch) * camera.distance,
-        target.y + std::sin(camera.yaw) * std::cos(camera.pitch) * camera.distance,
-        target.z + std::sin(camera.pitch) * camera.distance);
-
-    glm::mat4 view = glm::lookAt(eye, target, glm::vec3(0.0f, 0.0f, 1.0f));
-    glm::mat4 projection = glm::perspective(camera.fov, static_cast<float>(target_width) / static_cast<float>(target_height), 0.1f, 1000.0f);
+    glm::mat4 view = camera.get_view_matrix();
+    glm::mat4 projection = camera.get_projection_matrix(static_cast<float>(target_width) / static_cast<float>(target_height));
 
     std::vector<const SceneNode*> selected_nodes;
     render::collect_selected_roots_for_viewport(scene.root, selected_nodes, false);
@@ -343,7 +333,7 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
     glUniform3fv(glGetUniformLocation(shader_program, "uLightDirection"), 1, glm::value_ptr(light_dir_norm));
     glUniform3fv(glGetUniformLocation(shader_program, "uLightColor"),     1, glm::value_ptr(light_color));
     glUniform3fv(glGetUniformLocation(shader_program, "uAmbientColor"),   1, glm::value_ptr(ambient_color));
-    glUniform3fv(glGetUniformLocation(shader_program, "uCameraPos"),      1, glm::value_ptr(eye));
+    glUniform3fv(glGetUniformLocation(shader_program, "uCameraPos"),      1, glm::value_ptr(camera.get_eye_position()));
 
     GLint model_location = glGetUniformLocation(shader_program, "uModel");
     GLint color_location = glGetUniformLocation(shader_program, "uColor");

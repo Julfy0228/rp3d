@@ -85,11 +85,7 @@ void ScenePanel::draw(Scene& scene)
             ImVec2 delta = ImGui::GetMouseDragDelta(ImGuiMouseButton_Middle);
             Camera& camera = renderer->get_camera();
 
-            const float cos_yaw = std::cos(camera.yaw);
-            const float sin_yaw = std::sin(camera.yaw);
-            const float cos_pitch = std::cos(camera.pitch);
-            const float sin_pitch = std::sin(camera.pitch);
-            glm::vec3 forward(cos_yaw * cos_pitch, sin_yaw * cos_pitch, sin_pitch);
+            auto forward = camera.get_forward();
             float len_fwd = glm::length(forward);
             if (len_fwd > 0.0f) forward /= len_fwd;
 
@@ -102,16 +98,15 @@ void ScenePanel::draw(Scene& scene)
                 right /= len_right;
             glm::vec3 up = glm::cross(right, forward);
 
-            float fov = camera.fov;
-            float aspect = static_cast<float>(viewport_width) / static_cast<float>(viewport_height);
+            float aspect = float(viewport_width) / float(viewport_height);
 
-            float world_width = 2.0f * camera.distance * std::tan(fov * 0.5f);
+            float world_width = 2.0f * camera.distance * std::tan(camera.fov * 0.5f);
             float world_height = world_width / aspect;
 
-            float pixel_world_x = world_width / static_cast<float>(viewport_width);
-            float pixel_world_y = world_height / static_cast<float>(viewport_height);
+            float pixel_world_x = world_width / float(viewport_width);
+            float pixel_world_y = world_height / float(viewport_height);
 
-            camera.target += right * (delta.x * pixel_world_x) + up * (delta.y * pixel_world_y);
+            camera.target += right * (-delta.x * pixel_world_x) + up * (delta.y * pixel_world_y);
 
             ImGui::ResetMouseDragDelta(ImGuiMouseButton_Middle);
         }

@@ -4,8 +4,10 @@
 #include <vector>
 #include <memory>
 #include <algorithm>
+#include <cmath>
 
 #include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
 struct SceneNode
 {
@@ -73,6 +75,31 @@ struct Camera
     float distance = 96.0f;
     float fov = 70.0f;
     glm::vec3 target = glm::vec3(0.0f, 0.0f, 0.0f);
+
+    glm::vec3 get_eye_position() const
+    {
+        const glm::vec3& tgt = target;
+        return glm::vec3(
+            tgt.x + std::cos(yaw) * std::cos(pitch) * distance,
+            tgt.y + std::sin(yaw) * std::cos(pitch) * distance,
+            tgt.z + std::sin(pitch) * distance
+        );
+    }
+
+    glm::vec3 get_forward() const
+    {
+        return glm::normalize(target - get_eye_position());
+    }
+
+    glm::mat4 get_view_matrix() const
+    {
+        return glm::lookAt(get_eye_position(), target, glm::vec3(0.0f, 0.0f, 1.0f));
+    }
+
+    glm::mat4 get_projection_matrix(float aspect_ratio) const
+    {
+        return glm::perspective(glm::radians(fov), aspect_ratio, 0.1f, 1000.0f);
+    }
 };
 
 struct Scene
