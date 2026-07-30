@@ -40,6 +40,13 @@ void Renderer::shutdown()
     if (grid_vao != 0) glDeleteVertexArrays(1, &grid_vao);
     if (grid_shader_program != 0) glDeleteProgram(grid_shader_program);
 
+    if (renderbuffer_color_ms != 0) glDeleteRenderbuffers(1, &renderbuffer_color_ms);
+    if (renderbuffer_depth_ms != 0) glDeleteRenderbuffers(1, &renderbuffer_depth_ms);
+    if (framebuffer_ms != 0) glDeleteFramebuffers(1, &framebuffer_ms);
+
+    if (texture_resolve != 0) glDeleteTextures(1, &texture_resolve);
+    if (framebuffer_resolve != 0) glDeleteFramebuffers(1, &framebuffer_resolve);
+
     if (depth_renderbuffer != 0) glDeleteRenderbuffers(1, &depth_renderbuffer);
     if (color_texture != 0) glDeleteTextures(1, &color_texture);
     if (framebuffer != 0) glDeleteFramebuffers(1, &framebuffer);
@@ -47,6 +54,11 @@ void Renderer::shutdown()
     framebuffer = 0;
     color_texture = 0;
     depth_renderbuffer = 0;
+    framebuffer_ms = 0;
+    renderbuffer_color_ms = 0;
+    renderbuffer_depth_ms = 0;
+    framebuffer_resolve = 0;
+    texture_resolve = 0;
     shader_program = 0;
     mesh_vao = 0;
     mesh_vbo = 0;
@@ -88,8 +100,26 @@ void Renderer::ensure_viewport_resources(int target_width, int target_height)
     if (target_width <= 0 || target_height <= 0)
         return;
 
-    if (width == target_width && height == target_height && framebuffer != 0)
+    if (width == target_width && height == target_height && framebuffer_ms != 0 && framebuffer_resolve != 0)
         return;
+
+    if (framebuffer_ms != 0)
+    {
+        glDeleteFramebuffers(1, &framebuffer_ms);
+        glDeleteRenderbuffers(1, &renderbuffer_color_ms);
+        glDeleteRenderbuffers(1, &renderbuffer_depth_ms);
+        framebuffer_ms = 0;
+        renderbuffer_color_ms = 0;
+        renderbuffer_depth_ms = 0;
+    }
+
+    if (framebuffer_resolve != 0)
+    {
+        glDeleteFramebuffers(1, &framebuffer_resolve);
+        glDeleteTextures(1, &texture_resolve);
+        framebuffer_resolve = 0;
+        texture_resolve = 0;
+    }
 
     if (framebuffer != 0)
     {
@@ -104,23 +134,34 @@ void Renderer::ensure_viewport_resources(int target_width, int target_height)
     width = target_width;
     height = target_height;
 
-    glGenFramebuffers(1, &framebuffer);
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glGenFramebuffers(1, &framebuffer_ms);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_ms);
 
-    glGenTextures(1, &color_texture);
-    glBindTexture(GL_TEXTURE_2D, color_texture);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, nullptr);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, color_texture, 0);
+    glGenRenderbuffers(1, &renderbuffer_color_ms);
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer_color_ms);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, MSAA_SAMPLES, GL_RGBA8, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, renderbuffer_color_ms);
 
-    glGenRenderbuffers(1, &depth_renderbuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, depth_renderbuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, depth_renderbuffer);
+    glGenRenderbuffers(1, &renderbuffer_depth_ms);
+    glBindRenderbuffer(GL_RENDERBUFFER, renderbuffer_depth_ms);
+    glRenderbufferStorageMultisample(GL_RENDERBUFFER, MSAA_SAMPLES, GL_DEPTH_COMPONENT24, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderbuffer_depth_ms);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cerr << "Viewport framebuffer is incomplete" << std::endl;
+        std::cerr << "MSAA framebuffer is incomplete" << std::endl;
+
+    glGenFramebuffers(1, &framebuffer_resolve);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_resolve);
+
+    glGenTextures(1, &texture_resolve);
+    glBindTexture(GL_TEXTURE_2D, texture_resolve);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_resolve, 0);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cerr << "Resolve framebuffer is incomplete" << std::endl;
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -209,12 +250,13 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
     selection_center_screen_position.reset();
 
     ensure_viewport_resources(target_width, target_height);
-    if (framebuffer == 0 || shader_program == 0)
+    if (framebuffer_ms == 0 || framebuffer_resolve == 0 || shader_program == 0)
         return;
 
-    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_ms);
     glViewport(0, 0, target_width, target_height);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
     glClearColor(0.08f, 0.09f, 0.12f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -228,6 +270,12 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
         glm::mat4 view_empty = camera.get_view_matrix();
         glm::mat4 proj_empty = camera.get_projection_matrix(static_cast<float>(target_width) / static_cast<float>(target_height));
         render_grid(view_empty, proj_empty);
+
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer_ms);
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer_resolve);
+        glBlitFramebuffer(0, 0, target_width, target_height,
+                          0, 0, target_width, target_height,
+                          GL_COLOR_BUFFER_BIT, GL_NEAREST);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         return;
@@ -357,12 +405,19 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
     }
 
     glBindVertexArray(0);
+
+    glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer_ms);
+    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer_resolve);
+    glBlitFramebuffer(0, 0, target_width, target_height,
+                      0, 0, target_width, target_height,
+                      GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 ImTextureID Renderer::get_texture_id() const
 {
-    return static_cast<ImTextureID>(color_texture);
+    return static_cast<ImTextureID>(texture_resolve);
 }
 
 std::optional<glm::vec2> Renderer::get_selection_center_screen_position() const

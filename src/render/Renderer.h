@@ -52,6 +52,13 @@ private:
     int width  = 0;
     int height = 0;
 
+    GLuint framebuffer_ms = 0;
+    GLuint renderbuffer_color_ms = 0;
+    GLuint renderbuffer_depth_ms = 0;
+    GLuint framebuffer_resolve = 0;
+    GLuint texture_resolve = 0;
+    static constexpr int MSAA_SAMPLES = 4;
+
     GLuint shader_program = 0;
     GLuint mesh_vao = 0;
     GLuint mesh_vbo = 0;

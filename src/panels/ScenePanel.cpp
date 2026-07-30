@@ -52,9 +52,7 @@ void ScenePanel::draw(Scene& scene)
     int viewport_height = std::max(1, static_cast<int>(viewport_size.y));
 
     if (renderer)
-    {
         renderer->render(scene, viewport_width, viewport_height);
-    }
 
     if (renderer && renderer->get_texture_id() != 0)
     {
