@@ -18,7 +18,7 @@ namespace
         return stream.str();
     }
 
-    GLuint compile_shader(GLenum shader_type, const std::string& source)
+    GLuint compile_shader(GLenum shader_type, const std::string& source, const char* path)
     {
         GLuint shader = glCreateShader(shader_type);
         const char* source_ptr = source.c_str();
@@ -34,7 +34,7 @@ namespace
         glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &log_length);
         std::string log(static_cast<size_t>(log_length), '\0');
         glGetShaderInfoLog(shader, log_length, nullptr, log.data());
-        std::cerr << "Shader compilation failed: " << log << std::endl;
+        std::cerr << "Shader compilation failed (" << path << "): " << log << std::endl;
         glDeleteShader(shader);
         return 0;
     }
@@ -46,12 +46,12 @@ bool render::load_shader_program(const char* vertex_path, const char* fragment_p
     std::string fragment_source = read_text_file(fragment_path);
     if (vertex_source.empty() || fragment_source.empty())
     {
-        std::cerr << "Failed to read shader sources" << std::endl;
+        std::cerr << "Failed to read shader sources: " << vertex_path << " / " << fragment_path << std::endl;
         return false;
     }
 
-    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_source);
-    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source);
+    GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_source, vertex_path);
+    GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source, fragment_path);
     if (vertex_shader == 0 || fragment_shader == 0)
     {
         if (vertex_shader != 0)
@@ -78,7 +78,7 @@ bool render::load_shader_program(const char* vertex_path, const char* fragment_p
     glGetProgramiv(out_program, GL_INFO_LOG_LENGTH, &log_length);
     std::string log(static_cast<size_t>(log_length), '\0');
     glGetProgramInfoLog(out_program, log_length, nullptr, log.data());
-    std::cerr << "Program link failed: " << log << std::endl;
+    std::cerr << "Program link failed (" << vertex_path << " + " << fragment_path << "): " << log << std::endl;
     glDeleteProgram(out_program);
     out_program = 0;
     return false;

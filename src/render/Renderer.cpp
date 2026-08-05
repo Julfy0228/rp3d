@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <map>
 #include <optional>
+#include <set>
 #include <unordered_set>
 #include <vector>
 
@@ -24,6 +26,8 @@ bool Renderer::init()
     glEnable(GL_DEPTH_TEST);
     bool ok = render::load_shader_program("assets/shaders/scene.vert", "assets/shaders/scene.frag", shader_program);
     ok &= render::load_shader_program("assets/shaders/grid.vert",  "assets/shaders/grid.frag",  grid_shader_program);
+    ok &= render::load_shader_program("assets/shaders/selection_mask.vert", "assets/shaders/selection_mask.frag", selection_mask_shader);
+    ok &= render::load_shader_program("assets/shaders/fullscreen.vert", "assets/shaders/outline_composite.frag", outline_composite_shader);
     return ok;
 }
 
@@ -36,6 +40,14 @@ void Renderer::shutdown()
     if (mesh_vbo != 0) glDeleteBuffers(1, &mesh_vbo);
     if (mesh_vao != 0) glDeleteVertexArrays(1, &mesh_vao);
     if (shader_program != 0) glDeleteProgram(shader_program);
+    if (selection_mask_shader != 0) glDeleteProgram(selection_mask_shader);
+    if (outline_composite_shader != 0) glDeleteProgram(outline_composite_shader);
+
+    if (fullscreen_vbo != 0) glDeleteBuffers(1, &fullscreen_vbo);
+    if (fullscreen_vao != 0) glDeleteVertexArrays(1, &fullscreen_vao);
+
+    if (selection_mask_texture != 0) glDeleteTextures(1, &selection_mask_texture);
+    if (selection_mask_framebuffer != 0) glDeleteFramebuffers(1, &selection_mask_framebuffer);
 
     if (grid_vao != 0) glDeleteVertexArrays(1, &grid_vao);
     if (grid_shader_program != 0) glDeleteProgram(grid_shader_program);
@@ -60,9 +72,15 @@ void Renderer::shutdown()
     framebuffer_resolve = 0;
     texture_resolve = 0;
     shader_program = 0;
+    selection_mask_shader = 0;
+    outline_composite_shader = 0;
     mesh_vao = 0;
     mesh_vbo = 0;
     mesh_ebo = 0;
+    fullscreen_vao = 0;
+    fullscreen_vbo = 0;
+    selection_mask_framebuffer = 0;
+    selection_mask_texture = 0;
     grid_shader_program = 0;
     grid_vao = 0;
     width = 0;
@@ -102,6 +120,9 @@ void Renderer::ensure_viewport_resources(int target_width, int target_height)
 
     if (width == target_width && height == target_height && framebuffer_ms != 0 && framebuffer_resolve != 0)
         return;
+
+    viewport_width = target_width;
+    viewport_height = target_height;
 
     if (framebuffer_ms != 0)
     {
@@ -163,6 +184,37 @@ void Renderer::ensure_viewport_resources(int target_width, int target_height)
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         std::cerr << "Resolve framebuffer is incomplete" << std::endl;
 
+    if (selection_mask_framebuffer != 0)
+    {
+        glDeleteFramebuffers(1, &selection_mask_framebuffer);
+        glDeleteTextures(1, &selection_mask_texture);
+        selection_mask_framebuffer = 0;
+        selection_mask_texture = 0;
+    }
+
+    glGenFramebuffers(1, &selection_mask_framebuffer);
+    glBindFramebuffer(GL_FRAMEBUFFER, selection_mask_framebuffer);
+
+    glGenTextures(1, &selection_mask_texture);
+    glBindTexture(GL_TEXTURE_2D, selection_mask_texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, selection_mask_texture, 0);
+
+    GLuint mask_depth;
+    glGenRenderbuffers(1, &mask_depth);
+    glBindRenderbuffer(GL_RENDERBUFFER, mask_depth);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, mask_depth);
+
+    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+        std::cerr << "Selection mask framebuffer is incomplete" << std::endl;
+
+    glDeleteRenderbuffers(1, &mask_depth);
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
@@ -218,6 +270,34 @@ void Renderer::ensure_grid_resources()
     glGenVertexArrays(1, &grid_vao);
 }
 
+void Renderer::ensure_fullscreen_resources()
+{
+    if (fullscreen_vao != 0)
+        return;
+
+    const float fullscreen_quad[] = {
+        -1.0f,  1.0f,  0.0f, 1.0f,
+        -1.0f, -1.0f,  0.0f, 0.0f,
+         1.0f,  1.0f,  1.0f, 1.0f,
+         1.0f, -1.0f,  1.0f, 0.0f
+    };
+
+    glGenVertexArrays(1, &fullscreen_vao);
+    glGenBuffers(1, &fullscreen_vbo);
+
+    glBindVertexArray(fullscreen_vao);
+    glBindBuffer(GL_ARRAY_BUFFER, fullscreen_vbo);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreen_quad), fullscreen_quad, GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(0));
+
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+
+    glBindVertexArray(0);
+}
+
 void Renderer::render_grid(const glm::mat4& view, const glm::mat4& projection)
 {
     if (!grid_visible || grid_shader_program == 0)
@@ -243,6 +323,180 @@ void Renderer::render_grid(const glm::mat4& view, const glm::mat4& projection)
     glBindVertexArray(0);
 
     glDisable(GL_BLEND);
+}
+
+void Renderer::render_selection_mask(const Scene& scene, const glm::mat4& view, const glm::mat4& projection)
+{
+    std::vector<const SceneNode*> selected_nodes;
+    render::collect_selected_roots_for_viewport(scene.root, selected_nodes, false);
+
+    GLint current_framebuffer;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &current_framebuffer);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, selection_mask_framebuffer);
+    glViewport(0, 0, viewport_width, viewport_height);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    if (selected_nodes.empty() || selection_mask_shader == 0)
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, current_framebuffer);
+        glViewport(0, 0, viewport_width, viewport_height);
+        return;
+    }
+
+    glUseProgram(selection_mask_shader);
+    glUniformMatrix4fv(glGetUniformLocation(selection_mask_shader, "uView"),       1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(selection_mask_shader, "uProjection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    GLint model_location = glGetUniformLocation(selection_mask_shader, "uModel");
+
+    ensure_mesh_resources();
+
+    std::vector<ItemRenderData> items;
+    collect_items(scene.root, glm::mat4(1.0f), items);
+
+    for (const SceneNode* node : selected_nodes)
+    {
+        if (node->is_group())
+        {
+            const Group* selected_group = static_cast<const Group*>(node);
+            std::vector<ItemRenderData> group_items;
+
+            glm::mat4 group_parent_transform = glm::mat4(1.0f);
+            
+            auto find_group_transform = [&](auto& self, const Group& search_group, const glm::mat4& parent_transform) -> bool
+            {
+                glm::mat4 search_transform = parent_transform;
+                if (search_group.id != 0)
+                    search_transform = parent_transform * build_node_transform(search_group);
+
+                for (const auto& child : search_group.children)
+                {
+                    if (!child)
+                        continue;
+
+                    if (child.get() == selected_group)
+                    {
+                        group_parent_transform = search_transform;
+                        return true;
+                    }
+
+                    if (child->is_group() && self(self, *static_cast<const Group*>(child.get()), search_transform))
+                        return true;
+                }
+
+                return false;
+            };
+
+            find_group_transform(find_group_transform, scene.root, glm::mat4(1.0f));
+
+            std::function<void(const Group&, const glm::mat4&)> collect_group_items = 
+                [&](const Group& group, const glm::mat4& parent_transform)
+            {
+                glm::mat4 group_transform = parent_transform * build_node_transform(group);
+
+                for (const auto& child : group.children)
+                {
+                    if (!child)
+                        continue;
+
+                    if (child->is_group())
+                    {
+                        collect_group_items(*static_cast<const Group*>(child.get()), group_transform);
+                    }
+                    else
+                    {
+                        const Item* item = static_cast<const Item*>(child.get());
+                        ItemRenderData item_data;
+                        item_data.item = item;
+                        item_data.model = group_transform * build_node_transform(*item);
+                        group_items.push_back(item_data);
+                    }
+                }
+            };
+
+            collect_group_items(*selected_group, group_parent_transform);
+
+            for (const ItemRenderData& item_data : group_items)
+            {
+                const CachedMesh* cached_mesh = get_cached_item_mesh(*item_data.item);
+                if (cached_mesh == nullptr || cached_mesh->vertices.empty())
+                    continue;
+
+                glBindVertexArray(mesh_vao);
+                glBindBuffer(GL_ARRAY_BUFFER, mesh_vbo);
+                glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(cached_mesh->vertices.size() * sizeof(MeshVertex)), cached_mesh->vertices.data(), GL_DYNAMIC_DRAW);
+                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ebo);
+                glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(cached_mesh->indices.size() * sizeof(unsigned int)), cached_mesh->indices.data(), GL_DYNAMIC_DRAW);
+
+                glUniformMatrix4fv(model_location, 1, GL_FALSE, glm::value_ptr(item_data.model));
+                glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(cached_mesh->indices.size()), GL_UNSIGNED_INT, nullptr);
+            }
+        }
+        else
+        {
+            const Item* selected_item = static_cast<const Item*>(node);
+
+            auto item_it = std::find_if(items.begin(), items.end(), [selected_item](const ItemRenderData& item_data)
+            {
+                return item_data.item == selected_item;
+            });
+
+            if (item_it == items.end())
+                continue;
+
+            const CachedMesh* cached_mesh = get_cached_item_mesh(*selected_item);
+            if (cached_mesh == nullptr || cached_mesh->vertices.empty())
+                continue;
+
+            glBindVertexArray(mesh_vao);
+            glBindBuffer(GL_ARRAY_BUFFER, mesh_vbo);
+            glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(cached_mesh->vertices.size() * sizeof(MeshVertex)), cached_mesh->vertices.data(), GL_DYNAMIC_DRAW);
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mesh_ebo);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, static_cast<GLsizeiptr>(cached_mesh->indices.size() * sizeof(unsigned int)), cached_mesh->indices.data(), GL_DYNAMIC_DRAW);
+
+            glUniformMatrix4fv(model_location, 1, GL_FALSE, glm::value_ptr(item_it->model));
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(cached_mesh->indices.size()), GL_UNSIGNED_INT, nullptr);
+        }
+    }
+
+    glBindVertexArray(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, current_framebuffer);
+    glViewport(0, 0, viewport_width, viewport_height);
+}
+
+void Renderer::render_outline_composite()
+{
+    if (outline_composite_shader == 0)
+        return;
+
+    ensure_fullscreen_resources();
+
+    glUseProgram(outline_composite_shader);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, selection_mask_texture);
+    glUniform1i(glGetUniformLocation(outline_composite_shader, "uMaskTexture"), 0);
+
+    glm::vec2 texel_size(1.0f / static_cast<float>(viewport_width), 1.0f / static_cast<float>(viewport_height));
+    glUniform2fv(glGetUniformLocation(outline_composite_shader, "uTexelSize"), 1, glm::value_ptr(texel_size));
+
+    glm::vec4 outline_color(1.0f, 0.6f, 0.0f, 1.0f);
+    glUniform4fv(glGetUniformLocation(outline_composite_shader, "uOutlineColor"), 1, glm::value_ptr(outline_color));
+
+    glUniform1f(glGetUniformLocation(outline_composite_shader, "uOutlineWidth"), 3.0f);
+
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    glBindVertexArray(fullscreen_vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
 }
 
 void Renderer::render(const Scene& scene, int target_width, int target_height)
@@ -405,6 +659,9 @@ void Renderer::render(const Scene& scene, int target_width, int target_height)
     }
 
     glBindVertexArray(0);
+
+    render_selection_mask(scene, view, projection);
+    render_outline_composite();
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, framebuffer_ms);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, framebuffer_resolve);

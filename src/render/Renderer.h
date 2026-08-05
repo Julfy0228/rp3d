@@ -51,6 +51,8 @@ private:
     GLuint depth_renderbuffer = 0;
     int width  = 0;
     int height = 0;
+    int viewport_width  = 0;
+    int viewport_height = 0;
 
     GLuint framebuffer_ms = 0;
     GLuint renderbuffer_color_ms = 0;
@@ -63,6 +65,13 @@ private:
     GLuint mesh_vao = 0;
     GLuint mesh_vbo = 0;
     GLuint mesh_ebo = 0;
+
+    GLuint selection_mask_shader = 0;
+    GLuint outline_composite_shader = 0;
+    GLuint selection_mask_framebuffer = 0;
+    GLuint selection_mask_texture = 0;
+    GLuint fullscreen_vao = 0;
+    GLuint fullscreen_vbo = 0;
 
     GLuint grid_shader_program = 0;
     GLuint grid_vao = 0;
@@ -82,6 +91,9 @@ private:
     glm::mat4 build_model_matrix(const Item& item, const glm::mat4& parent_transform, const glm::vec3& pivot) const;
     void collect_items(const Group& group, const glm::mat4& parent_transform, std::vector<ItemRenderData>& items) const;
     void render_grid(const glm::mat4& view, const glm::mat4& projection);
+    void render_selection_mask(const Scene& scene, const glm::mat4& view, const glm::mat4& projection);
+    void render_outline_composite();
+    void ensure_fullscreen_resources();
 
 public:
     bool init();
