@@ -71,6 +71,8 @@ namespace Widgets
 
         static const void* last_vertices_key = nullptr;
         static bool edit_in_progress = false;
+        static std::vector<glm::i32vec2> resize_base_vertices;
+        static glm::i32vec2 resize_base_size = glm::i32vec2(1, 1);
         const void* current_vertices_key = static_cast<const void*>(&vertices);
         if (last_vertices_key != current_vertices_key)
         {
@@ -78,8 +80,8 @@ namespace Widgets
             edit_in_progress = false;
             if (!vertices.empty())
             {
-                user_grid_size.x = req_width;
-                user_grid_size.y = req_height;
+                user_grid_size.x = std::clamp(user_grid_size.x, 1, 512);
+                user_grid_size.y = std::clamp(user_grid_size.y, 1, 512);
             }
             else
             {
@@ -93,21 +95,38 @@ namespace Widgets
         ImGui::Text("%s", label);
 
         ImGui::PushItemWidth(120.0f);
-        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 " Size", &user_grid_size.x, 0.2f, req_width, 512, "%d", ImGuiSliderFlags_ColorMarkers))
+        if (ImGui::DragInt2(ICON_LC_MAXIMIZE_2 " Size", &user_grid_size.x, 0.2f, 1, 512, "%d", ImGuiSliderFlags_ColorMarkers))
         {
             if (!edit_in_progress)
             {
                 edit_in_progress = true;
+                resize_base_vertices = vertices;
+                resize_base_size = glm::i32vec2(req_width, req_height);
                 if (on_edit_begin)
                     on_edit_begin();
             }
-            user_grid_size.x = std::clamp(user_grid_size.x, req_width, 512);
-            user_grid_size.y = std::clamp(user_grid_size.y, req_height, 512);
+
+            user_grid_size.x = std::clamp(user_grid_size.x, 1, 512);
+            user_grid_size.y = std::clamp(user_grid_size.y, 1, 512);
+
+            if (!resize_base_vertices.empty())
+            {
+                float scale_x = static_cast<float>(user_grid_size.x) / static_cast<float>(resize_base_size.x);
+                float scale_y = static_cast<float>(user_grid_size.y) / static_cast<float>(resize_base_size.y);
+
+                for (size_t i = 0; i < vertices.size() && i < resize_base_vertices.size(); ++i)
+                {
+                    vertices[i].x = static_cast<int>(std::lround(resize_base_vertices[i].x * scale_x));
+                    vertices[i].y = static_cast<int>(std::lround(resize_base_vertices[i].y * scale_y));
+                }
+            }
+
             value_changed = true;
         }
         if (edit_in_progress && ImGui::IsItemDeactivatedAfterEdit())
         {
             edit_in_progress = false;
+            resize_base_vertices.clear();
             if (on_edit_end)
                 on_edit_end();
         }
