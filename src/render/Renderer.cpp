@@ -681,3 +681,78 @@ std::optional<glm::vec2> Renderer::get_selection_center_screen_position() const
 {
     return selection_center_screen_position;
 }
+
+namespace
+{
+    bool ray_triangle_intersect(
+        const glm::vec3& orig, const glm::vec3& dir,
+        const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2,
+        float& out_t)
+    {
+        constexpr float EPS = 1e-6f;
+
+        glm::vec3 edge1 = v1 - v0;
+        glm::vec3 edge2 = v2 - v0;
+        glm::vec3 pvec = glm::cross(dir, edge2);
+        float det = glm::dot(edge1, pvec);
+        if (std::abs(det) < EPS)
+            return false;
+
+        float inv_det = 1.0f / det;
+        glm::vec3 tvec = orig - v0;
+        float u = glm::dot(tvec, pvec) * inv_det;
+        if (u < 0.0f || u > 1.0f)
+            return false;
+
+        glm::vec3 qvec = glm::cross(tvec, edge1);
+        float v = glm::dot(dir, qvec) * inv_det;
+        if (v < 0.0f || u + v > 1.0f)
+            return false;
+
+        float t = glm::dot(edge2, qvec) * inv_det;
+        if (t < EPS)
+            return false;
+
+        out_t = t;
+        return true;
+    }
+}
+
+const Item* Renderer::pick_item(const Scene& scene, const glm::vec3& ray_origin, const glm::vec3& ray_dir) const
+{
+    std::vector<ItemRenderData> items;
+    collect_items(scene.root, glm::mat4(1.0f), items);
+
+    const Item* closest_item = nullptr;
+    float closest_t = 1e30f;
+
+    for (const ItemRenderData& item_data : items)
+    {
+        if (!item_data.item)
+            continue;
+
+        const CachedMesh* mesh = get_cached_item_mesh(*item_data.item);
+        if (!mesh || mesh->vertices.empty() || mesh->indices.empty())
+            continue;
+
+        glm::mat4 inv_model = glm::inverse(item_data.model);
+        glm::vec3 local_origin = glm::vec3(inv_model * glm::vec4(ray_origin, 1.0f));
+        glm::vec3 local_dir = glm::mat3(inv_model) * ray_dir;
+
+        for (size_t i = 0; i + 2 < mesh->indices.size(); i += 3)
+        {
+            const glm::vec3& v0 = mesh->vertices[mesh->indices[i]].position;
+            const glm::vec3& v1 = mesh->vertices[mesh->indices[i + 1]].position;
+            const glm::vec3& v2 = mesh->vertices[mesh->indices[i + 2]].position;
+
+            float t;
+            if (ray_triangle_intersect(local_origin, local_dir, v0, v1, v2, t) && t < closest_t)
+            {
+                closest_t = t;
+                closest_item = item_data.item;
+            }
+        }
+    }
+
+    return closest_item;
+}

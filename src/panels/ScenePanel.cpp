@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <limits>
 #include <imgui.h>
 #include <IconsLucide.h>
 #include <glm/gtc/constants.hpp>
@@ -116,6 +118,85 @@ void ScenePanel::draw(Scene& scene)
             float zoom_speed = std::max(1.0f, camera.distance * 0.05f);
             camera.distance -= ImGui::GetIO().MouseWheel * zoom_speed;
             camera.distance = std::clamp(camera.distance, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX);
+        }
+
+        if (is_hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        {
+            ImVec2 mouse_pos = ImGui::GetMousePos();
+            ImVec2 viewport_pos = ImGui::GetItemRectMin();
+            
+            float pixel_x = mouse_pos.x - viewport_pos.x;
+            float pixel_y = mouse_pos.y - viewport_pos.y;
+            
+            float norm_x = pixel_x / viewport_width;
+            float norm_y = pixel_y / viewport_height;
+            
+            float ndc_x = norm_x * 2.0f - 1.0f;
+            float ndc_y = -(norm_y * 2.0f - 1.0f);
+            
+            Camera& camera = renderer->get_camera();
+            glm::mat4 view = camera.get_view_matrix();
+            glm::mat4 projection = camera.get_projection_matrix(float(viewport_width) / float(viewport_height));
+            glm::mat4 inv_projection = glm::inverse(projection);
+            glm::mat4 inv_view = glm::inverse(view);
+            
+            glm::vec4 ray_clip(ndc_x, ndc_y, -1.0f, 1.0f);
+            glm::vec4 ray_eye = inv_projection * ray_clip;
+            ray_eye = glm::vec4(ray_eye.x, ray_eye.y, -1.0f, 0.0f);
+            
+            glm::vec3 ray_world = glm::normalize(glm::vec3(inv_view * ray_eye));
+            glm::vec3 ray_origin = camera.get_eye_position();
+            
+            const Item* picked_item = renderer->pick_item(scene, ray_origin, ray_world);
+            SceneNode* closest_node = picked_item ? const_cast<Item*>(picked_item) : nullptr;
+            
+            bool ctrl_pressed = ImGui::GetIO().KeyCtrl;
+            
+            if (closest_node)
+            {
+                if (!ctrl_pressed)
+                {
+                    std::function<void(Group&)> deselect_all = [&](Group& group)
+                    {
+                        group.selected = false;
+                        for (auto& child : group.children)
+                        {
+                            if (!child) continue;
+                            if (child->is_group())
+                            {
+                                deselect_all(*static_cast<Group*>(child.get()));
+                            }
+                            else
+                            {
+                                child->selected = false;
+                            }
+                        }
+                    };
+                    deselect_all(scene.root);
+                }
+                
+                closest_node->selected = !closest_node->selected;
+            }
+            else if (!ctrl_pressed)
+            {
+                std::function<void(Group&)> deselect_all = [&](Group& group)
+                {
+                    group.selected = false;
+                    for (auto& child : group.children)
+                    {
+                        if (!child) continue;
+                        if (child->is_group())
+                        {
+                            deselect_all(*static_cast<Group*>(child.get()));
+                        }
+                        else
+                        {
+                            child->selected = false;
+                        }
+                    }
+                };
+                deselect_all(scene.root);
+            }
         }
 
         if (std::optional<glm::vec2> marker_position = renderer->get_selection_center_screen_position())

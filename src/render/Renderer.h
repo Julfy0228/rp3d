@@ -68,8 +68,18 @@ private:
 
     GLuint selection_mask_shader = 0;
     GLuint outline_composite_shader = 0;
+    GLuint jfa_init_shader = 0;
+    GLuint jfa_jump_shader = 0;
+    
+    GLuint selection_mask_framebuffer_ms = 0;
+    GLuint selection_mask_renderbuffer_ms = 0;
+    GLuint selection_mask_depth_renderbuffer_ms = 0;
     GLuint selection_mask_framebuffer = 0;
     GLuint selection_mask_texture = 0;
+    GLuint jfa_seed_texture[2] = {0, 0};
+    GLuint jfa_framebuffer[2] = {0, 0};
+    int jfa_final_texture_index = 0;
+    
     GLuint fullscreen_vao = 0;
     GLuint fullscreen_vbo = 0;
 
@@ -92,8 +102,10 @@ private:
     void collect_items(const Group& group, const glm::mat4& parent_transform, std::vector<ItemRenderData>& items) const;
     void render_grid(const glm::mat4& view, const glm::mat4& projection);
     void render_selection_mask(const Scene& scene, const glm::mat4& view, const glm::mat4& projection);
+    void render_jfa();
     void render_outline_composite();
     void ensure_fullscreen_resources();
+    void ensure_jfa_resources();
 
 public:
     bool init();
@@ -101,6 +113,7 @@ public:
     void render(const Scene& scene, int width, int height);
     ImTextureID get_texture_id() const;
     std::optional<glm::vec2> get_selection_center_screen_position() const;
+    const Item* pick_item(const Scene& scene, const glm::vec3& ray_origin, const glm::vec3& ray_dir) const;
     
     Camera& get_camera() { return camera; }
     const Camera& get_camera() const { return camera; }
