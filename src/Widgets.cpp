@@ -1,4 +1,4 @@
-#include "Widgets.h"
+﻿#include "Widgets.h"
 
 #include <algorithm>
 #include <cmath>
@@ -16,23 +16,11 @@ namespace Widgets
 {
     void DrawCenterMarker(ImDrawList* draw_list, ImVec2 center_pos, float circle_radius, float cross_length)
     {
-        ImU32 circle_col = ImGui::GetColorU32(Colors::GeomCenterA);
-        ImU32 cross_col  = ImGui::GetColorU32(Colors::GeomCenterB);
-
+        ImU32 white_col = IM_COL32(255, 255, 255, 255);
         draw_list->AddCircleFilled(
-            ImVec2(center_pos.x + 0.5f, center_pos.y + 0.5f),
+            ImVec2(center_pos.x, center_pos.y),
             circle_radius,
-            circle_col
-        );
-        draw_list->AddLine(
-            ImVec2(center_pos.x - cross_length, center_pos.y),
-            ImVec2(center_pos.x + cross_length, center_pos.y),
-            cross_col, 2.0f
-        );
-        draw_list->AddLine(
-            ImVec2(center_pos.x, center_pos.y - cross_length),
-            ImVec2(center_pos.x, center_pos.y + cross_length),
-            cross_col, 2.0f
+            white_col
         );
     }
 

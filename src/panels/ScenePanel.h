@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <Scene.h>
 #include <memory>
@@ -26,4 +26,11 @@ private:
     glm::i32vec2 gizmo_scale_base_size = glm::i32vec2(1, 1);
     std::vector<glm::i32vec2> gizmo_scale_base_vertices;
     int gizmo_scale_base_thickness = 1;
+    glm::vec3 gizmo_scale_prev_ratio = glm::vec3(1.0f);
+    glm::i32vec3 gizmo_base_position = glm::i32vec3(0, 0, 0);
+    glm::i32vec3 gizmo_base_rotation = glm::i32vec3(0, 0, 0);
+    glm::i32vec3 gizmo_prev_position = glm::i32vec3(0, 0, 0);
+    glm::i32vec3 gizmo_prev_rotation = glm::i32vec3(0, 0, 0);
+    ImGuizmo::MOVETYPE gizmo_active_axis_type = ImGuizmo::MT_NONE;
+    int gizmo_active_axis = -1;
 };

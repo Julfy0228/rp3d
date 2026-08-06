@@ -1,4 +1,4 @@
-#include "ScenePanel.h"
+﻿#include "ScenePanel.h"
 #include "render/Renderer.h"
 #include "render/SceneRenderData.h"
 #include "Widgets.h"
@@ -21,6 +21,166 @@ namespace
     constexpr float CAMERA_ZOOM_MAX = 500.0f;
     constexpr float CAMERA_ROTATION_SENSITIVITY = 0.005f;
     constexpr float CAMERA_PAN_SENSITIVITY = 0.1f;
+
+    void draw_gizmo_text(
+        const ImVec2& text_pos,
+        ImGuizmo::MOVETYPE active_move_type,
+        ImGuizmo::OPERATION operation,
+        const glm::i32vec3& prev_values,
+        const glm::i32vec3& current_values)
+    {
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        ImU32 color_x = ImGui::GetColorU32(ImVec4(240/255.0f, 20/255.0f, 20/255.0f, 1.0f));
+        ImU32 color_y = ImGui::GetColorU32(ImVec4(20/255.0f, 240/255.0f, 20/255.0f, 1.0f));
+        ImU32 color_z = ImGui::GetColorU32(ImVec4(20/255.0f, 20/255.0f, 240/255.0f, 1.0f));
+        ImU32 color_white = ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+        
+        ImU32 axis_colors[3] = { color_x, color_y, color_z };
+
+        bool axis_active[3] = { false, false, false };
+        
+        if (active_move_type != ImGuizmo::MT_NONE)
+        {
+            if (operation == ImGuizmo::TRANSLATE)
+            {
+                if (active_move_type == ImGuizmo::MT_MOVE_X) axis_active[0] = true;
+                else if (active_move_type == ImGuizmo::MT_MOVE_Y) axis_active[1] = true;
+                else if (active_move_type == ImGuizmo::MT_MOVE_Z) axis_active[2] = true;
+                else if (active_move_type == ImGuizmo::MT_MOVE_YZ) { axis_active[1] = axis_active[2] = true; }
+                else if (active_move_type == ImGuizmo::MT_MOVE_ZX) { axis_active[2] = axis_active[0] = true; }
+                else if (active_move_type == ImGuizmo::MT_MOVE_XY) { axis_active[0] = axis_active[1] = true; }
+                else if (active_move_type == ImGuizmo::MT_MOVE_SCREEN) { axis_active[0] = axis_active[1] = axis_active[2] = true; }
+            }
+            else if (operation == ImGuizmo::ROTATE)
+            {
+                if (active_move_type == ImGuizmo::MT_ROTATE_X) axis_active[0] = true;
+                else if (active_move_type == ImGuizmo::MT_ROTATE_Y) axis_active[1] = true;
+                else if (active_move_type == ImGuizmo::MT_ROTATE_Z) axis_active[2] = true;
+                else if (active_move_type == ImGuizmo::MT_ROTATE_SCREEN) { axis_active[0] = axis_active[1] = axis_active[2] = true; }
+            }
+        }
+
+        std::vector<std::string> axis_texts;
+        for (int i = 0; i < 3; ++i)
+        {
+            char val_str[32];
+            
+            if (operation == ImGuizmo::TRANSLATE && axis_active[i])
+                std::snprintf(val_str, sizeof(val_str), "%d" ICON_LC_CHEVRONS_RIGHT "%d", prev_values[i], current_values[i]);
+            else if (operation == ImGuizmo::ROTATE)
+                std::snprintf(val_str, sizeof(val_str), "%d" ICON_LC_CHEVRONS_RIGHT "%d", prev_values[i], current_values[i]);
+            else
+                std::snprintf(val_str, sizeof(val_str), "%d", current_values[i]);
+            axis_texts.push_back(val_str);
+        }
+        
+        char full_text[256];
+        std::snprintf(full_text, sizeof(full_text), "%s  %s  %s", 
+                      axis_texts[0].c_str(), axis_texts[1].c_str(), axis_texts[2].c_str());
+        ImVec2 full_size = ImGui::CalcTextSize(full_text);
+        
+        draw_list->AddRectFilled(
+            ImVec2(text_pos.x - 4.0f, text_pos.y - 2.0f),
+            ImVec2(text_pos.x + full_size.x + 4.0f, text_pos.y + full_size.y + 2.0f),
+            IM_COL32(0, 0, 0, 160), 3.0f);
+
+        ImVec2 cursor = text_pos;
+        for (int i = 0; i < 3; ++i)
+        {
+            ImU32 val_color = color_white;
+            
+            if (operation == ImGuizmo::TRANSLATE && axis_active[i])
+                val_color = axis_colors[i];
+            else if (operation == ImGuizmo::ROTATE)
+                val_color = axis_colors[i];
+            
+            draw_list->AddText(cursor, val_color, axis_texts[i].c_str());
+            cursor.x += ImGui::CalcTextSize(axis_texts[i].c_str()).x;
+
+            if (i < 2)
+            {
+                draw_list->AddText(cursor, color_white, "  ");
+                cursor.x += ImGui::CalcTextSize("  ").x;
+            }
+        }
+    }
+
+    void draw_scale_text(
+        const ImVec2& text_pos,
+        ImGuizmo::MOVETYPE active_move_type,
+        const glm::i32vec2& base_size,
+        int base_thickness,
+        const glm::i32vec2& current_size,
+        int current_thickness)
+    {
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+        ImU32 color_x = ImGui::GetColorU32(ImVec4(240/255.0f, 20/255.0f, 20/255.0f, 1.0f));
+        ImU32 color_y = ImGui::GetColorU32(ImVec4(20/255.0f, 240/255.0f, 20/255.0f, 1.0f));
+        ImU32 color_z = ImGui::GetColorU32(ImVec4(20/255.0f, 20/255.0f, 240/255.0f, 1.0f));
+        ImU32 color_white = ImGui::GetColorU32(ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+        
+        ImU32 axis_colors[3] = { color_x, color_y, color_z };
+
+        bool axis_active[3] = { false, false, false };
+        
+        if (active_move_type != ImGuizmo::MT_NONE)
+        {
+            if (active_move_type == ImGuizmo::MT_SCALE_X) axis_active[0] = true;
+            else if (active_move_type == ImGuizmo::MT_SCALE_Y) axis_active[1] = true;
+            else if (active_move_type == ImGuizmo::MT_SCALE_Z) axis_active[2] = true;
+            else if (active_move_type == ImGuizmo::MT_SCALE_XYZ) { axis_active[0] = axis_active[1] = axis_active[2] = true; }
+        }
+
+        char full_text[256];
+        ImVec2 cursor = text_pos;
+        
+        struct AxisInfo {
+            int base_val;
+            int current_val;
+        };
+        
+        AxisInfo axes[3] = {
+            { base_size.x, current_size.x },
+            { base_size.y, current_size.y },
+            { base_thickness, current_thickness }
+        };
+        
+        std::vector<std::string> axis_texts;
+        for (int i = 0; i < 3; ++i)
+        {
+            char size_str[32];
+            if (axis_active[i])
+                std::snprintf(size_str, sizeof(size_str), "%d" ICON_LC_CHEVRONS_RIGHT "%d", axes[i].base_val, axes[i].current_val);
+            else
+                std::snprintf(size_str, sizeof(size_str), "%d", axes[i].current_val);
+            axis_texts.push_back(size_str);
+        }
+        
+        std::snprintf(full_text, sizeof(full_text), "%s  %s  %s", 
+                      axis_texts[0].c_str(), axis_texts[1].c_str(), axis_texts[2].c_str());
+        ImVec2 full_size = ImGui::CalcTextSize(full_text);
+        
+        draw_list->AddRectFilled(
+            ImVec2(text_pos.x - 4.0f, text_pos.y - 2.0f),
+            ImVec2(text_pos.x + full_size.x + 4.0f, text_pos.y + full_size.y + 2.0f),
+            IM_COL32(0, 0, 0, 160), 3.0f);
+
+        cursor = text_pos;
+        for (int i = 0; i < 3; ++i)
+        {
+            ImU32 val_color = axis_active[i] ? axis_colors[i] : color_white;
+            draw_list->AddText(cursor, val_color, axis_texts[i].c_str());
+            cursor.x += ImGui::CalcTextSize(axis_texts[i].c_str()).x;
+
+            if (i < 2)
+            {
+                draw_list->AddText(cursor, color_white, "  ");
+                cursor.x += ImGui::CalcTextSize("  ").x;
+            }
+        }
+    }
 
     bool find_selected_with_parent_transform(
         Group& group,
@@ -134,7 +294,7 @@ void ScenePanel::draw(Scene& scene, UndoManager* undo_manager)
         ImGui::SameLine();
 
         ImGui::PushStyleColor(ImGuiCol_Button, gizmo_operation == ImGuizmo::SCALE ? button_color_active : button_color);
-        if (ImGui::Button(ICON_LC_MAXIMIZE_2, ImVec2(button_size, button_size))) gizmo_operation = ImGuizmo::SCALE;
+        if (ImGui::Button(ICON_LC_SCALE_3D, ImVec2(button_size, button_size))) gizmo_operation = ImGuizmo::SCALE;
         ImGui::PopStyleColor();
 
         ImGui::EndGroup();
@@ -169,17 +329,26 @@ void ScenePanel::draw(Scene& scene, UndoManager* undo_manager)
             const float* snap_values = nullptr;
             if (gizmo_operation == ImGuizmo::TRANSLATE) snap_values = snap_translate;
             else if (gizmo_operation == ImGuizmo::ROTATE) snap_values = snap_rotate;
-            // для SCALE snap не передаём — см. предыдущее объяснение про кратные скачки
 
-            if (ImGuizmo::Manipulate(
-                    glm::value_ptr(view), glm::value_ptr(projection),
-                    gizmo_operation, ImGuizmo::WORLD, glm::value_ptr(gizmo_active_matrix),
-                    nullptr, snap_values))
+            ImGuizmo::MODE gizmo_mode = (gizmo_operation == ImGuizmo::SCALE) ? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+            
+            ImGuizmo::Manipulate(
+                glm::value_ptr(view), glm::value_ptr(projection),
+                gizmo_operation, gizmo_mode, glm::value_ptr(gizmo_active_matrix),
+                nullptr, snap_values);
+
+            if (ImGuizmo::IsUsing())
             {
                 if (!gizmo_was_using)
                 {
                     if (undo_manager)
                         undo_manager->capture_snapshot(scene);
+
+                    gizmo_base_position = selected_node->position;
+                    gizmo_base_rotation = selected_node->rotation;
+                    gizmo_prev_position = selected_node->position;
+                    gizmo_prev_rotation = selected_node->rotation;
+                    gizmo_active_axis_type = ImGuizmo::GetActiveMoveType();
 
                     if (selected_node->is_item())
                     {
@@ -198,7 +367,10 @@ void ScenePanel::draw(Scene& scene, UndoManager* undo_manager)
                                 max_v.x = std::max(max_v.x, v.x);
                                 max_v.y = std::max(max_v.y, v.y);
                             }
-                            gizmo_scale_base_size = max_v - min_v + glm::i32vec2(1, 1);
+                            gizmo_scale_base_size = glm::i32vec2(
+                                std::max(1, max_v.x - min_v.x),
+                                std::max(1, max_v.y - min_v.y)
+                            );
                         }
                         else
                         {
@@ -208,23 +380,65 @@ void ScenePanel::draw(Scene& scene, UndoManager* undo_manager)
                 }
 
                 glm::mat4 local_matrix = glm::inverse(parent_transform) * gizmo_active_matrix;
-
                 float t[3], r[3], s[3];
                 ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(local_matrix), t, r, s);
 
-                selected_node->position = glm::i32vec3(
+                glm::i32vec3 new_position = glm::i32vec3(
                     static_cast<int>(std::lround(t[0])),
                     static_cast<int>(std::lround(t[1])),
                     static_cast<int>(std::lround(t[2])));
-                selected_node->rotation = glm::i32vec3(
+                glm::i32vec3 new_rotation = glm::i32vec3(
                     static_cast<int>(std::lround(r[0])),
                     static_cast<int>(std::lround(r[1])),
                     static_cast<int>(std::lround(r[2])));
 
-                if (gizmo_operation == ImGuizmo::SCALE && selected_node->is_item())
+                selected_node->position = new_position;
+                selected_node->rotation = new_rotation;
+
+                if (std::optional<glm::vec2> center_pos = renderer->get_selection_center_screen_position())
+                {
+                    ImVec2 text_pos(image_min.x + center_pos->x + 16.0f, image_min.y + center_pos->y - 28.0f);
+
+                    if (gizmo_operation == ImGuizmo::TRANSLATE)
+                    {
+                        draw_gizmo_text(text_pos, gizmo_active_axis_type, gizmo_operation, gizmo_prev_position,
+                                      new_position);
+                        gizmo_prev_position = new_position;
+                    }
+                    else if (gizmo_operation == ImGuizmo::ROTATE)
+                    {
+                        draw_gizmo_text(text_pos, gizmo_active_axis_type, gizmo_operation, gizmo_prev_rotation,
+                                      new_rotation);
+                        gizmo_prev_rotation = new_rotation;
+                    }
+                    else if (gizmo_operation == ImGuizmo::SCALE)
+                    {
+                        if (selected_node->is_item())
+                        {
+                            Item* item = static_cast<Item*>(selected_node);
+                            item->thickness = std::max(1, static_cast<int>(std::lround(gizmo_scale_base_thickness * s[2])));
+
+                            glm::i32vec2 current_size = gizmo_scale_base_size;
+                            if (!gizmo_scale_base_vertices.empty())
+                            {
+                                glm::i32vec2 new_size(
+                                    std::max(1, static_cast<int>(std::lround(gizmo_scale_base_size.x * s[0]))),
+                                    std::max(1, static_cast<int>(std::lround(gizmo_scale_base_size.y * s[1]))));
+
+                                item->vertices = gizmo_scale_base_vertices;
+                                if (new_size != gizmo_scale_base_size)
+                                    RescaleVertices(item->vertices, gizmo_scale_base_size, new_size);
+                                current_size = new_size;
+                            }
+
+                            draw_scale_text(text_pos, gizmo_active_axis_type, gizmo_scale_base_size, gizmo_scale_base_thickness,
+                                          current_size, item->thickness);
+                        }
+                    }
+                }
+                else if (gizmo_operation == ImGuizmo::SCALE && selected_node->is_item())
                 {
                     Item* item = static_cast<Item*>(selected_node);
-
                     item->thickness = std::max(1, static_cast<int>(std::lround(gizmo_scale_base_thickness * s[2])));
 
                     if (!gizmo_scale_base_vertices.empty())
@@ -238,7 +452,7 @@ void ScenePanel::draw(Scene& scene, UndoManager* undo_manager)
                             RescaleVertices(item->vertices, gizmo_scale_base_size, new_size);
                     }
                 }
-
+                
                 gizmo_used_this_frame = true;
             }
         }
@@ -379,14 +593,6 @@ void ScenePanel::draw(Scene& scene, UndoManager* undo_manager)
                 };
                 deselect_all(scene.root);
             }
-        }
-
-        if (std::optional<glm::vec2> marker_position = renderer->get_selection_center_screen_position())
-        {
-            const ImVec2 image_min = ImGui::GetItemRectMin();
-            const ImVec2 center_pos(image_min.x + marker_position->x, image_min.y + marker_position->y);
-            ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            Widgets::DrawCenterMarker(draw_list, center_pos);
         }
     }
     else
