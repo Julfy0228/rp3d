@@ -1,6 +1,7 @@
 #include "Utils.h"
 
 #include <IconsLucide.h>
+#include <cmath>
 
 uint32_t DecodeUTF8(const char*& ptr)
 {
@@ -37,4 +38,31 @@ std::string StripIcons(const char* utf8_str)
     }
 
     return clean_str;
+}
+
+void RescaleVertices(
+    std::vector<glm::i32vec2>& vertices,
+    const glm::i32vec2& base_size,
+    const glm::i32vec2& new_size)
+{
+    if (base_size.x <= 0 || base_size.y <= 0 || vertices.empty())
+        return;
+
+    glm::i32vec2 min_v = vertices[0];
+    for (const auto& v : vertices)
+    {
+        min_v.x = std::min(min_v.x, v.x);
+        min_v.y = std::min(min_v.y, v.y);
+    }
+
+    double scale_x = static_cast<double>(new_size.x) / static_cast<double>(base_size.x);
+    double scale_y = static_cast<double>(new_size.y) / static_cast<double>(base_size.y);
+
+    for (auto& v : vertices)
+    {
+        double rel_x = v.x - min_v.x;
+        double rel_y = v.y - min_v.y;
+        v.x = min_v.x + static_cast<int>(std::lround(rel_x * scale_x));
+        v.y = min_v.y + static_cast<int>(std::lround(rel_y * scale_y));
+    }
 }

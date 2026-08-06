@@ -10,6 +10,7 @@
 #include <imgui_stdlib.h>
 #include <IconsLucide.h>
 #include <Colors.h>
+#include "Utils.h"
 
 namespace Widgets
 {
@@ -89,8 +90,8 @@ namespace Widgets
             }
         }
 
-        user_grid_size.x = std::clamp(user_grid_size.x, req_width, 512);
-        user_grid_size.y = std::clamp(user_grid_size.y, req_height, 512);
+        user_grid_size.x = std::clamp(user_grid_size.x, 1, 512);
+        user_grid_size.y = std::clamp(user_grid_size.y, 1, 512);
 
         ImGui::Text("%s", label);
 
@@ -109,16 +110,10 @@ namespace Widgets
             user_grid_size.x = std::clamp(user_grid_size.x, 1, 512);
             user_grid_size.y = std::clamp(user_grid_size.y, 1, 512);
 
-            if (!resize_base_vertices.empty())
+            if (!resize_base_vertices.empty() && user_grid_size != resize_base_size)
             {
-                float scale_x = static_cast<float>(user_grid_size.x) / static_cast<float>(resize_base_size.x);
-                float scale_y = static_cast<float>(user_grid_size.y) / static_cast<float>(resize_base_size.y);
-
-                for (size_t i = 0; i < vertices.size() && i < resize_base_vertices.size(); ++i)
-                {
-                    vertices[i].x = static_cast<int>(std::lround(resize_base_vertices[i].x * scale_x));
-                    vertices[i].y = static_cast<int>(std::lround(resize_base_vertices[i].y * scale_y));
-                }
+                vertices = resize_base_vertices;
+                RescaleVertices(vertices, resize_base_size, user_grid_size);
             }
 
             value_changed = true;

@@ -172,7 +172,7 @@ void EditorApp::draw_panels()
         properties_panel->draw(scene, &undo_manager);
     
     if (scene_panel)
-        scene_panel->draw(scene);
+        scene_panel->draw(scene, &undo_manager);
 
     if (style_panel)
         style_panel->draw();

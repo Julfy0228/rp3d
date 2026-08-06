@@ -23,6 +23,7 @@ struct SceneNode
     virtual ~SceneNode() = default;
 
     virtual bool is_group() const { return false; }
+    virtual bool is_item() const { return false; }
 };
 
 struct Item : public SceneNode
@@ -41,6 +42,8 @@ struct Item : public SceneNode
             { 0, side }
         };
     }
+
+    bool is_item() const override { return true; }
 };
 
 struct Group : public SceneNode
