@@ -400,17 +400,11 @@ void ScenePanel::draw(Scene& scene, UndoManager* undo_manager)
                     ImVec2 text_pos(image_min.x + center_pos->x + 16.0f, image_min.y + center_pos->y - 28.0f);
 
                     if (gizmo_operation == ImGuizmo::TRANSLATE)
-                    {
-                        draw_gizmo_text(text_pos, gizmo_active_axis_type, gizmo_operation, gizmo_prev_position,
+                        draw_gizmo_text(text_pos, gizmo_active_axis_type, gizmo_operation, gizmo_base_position,
                                       new_position);
-                        gizmo_prev_position = new_position;
-                    }
                     else if (gizmo_operation == ImGuizmo::ROTATE)
-                    {
-                        draw_gizmo_text(text_pos, gizmo_active_axis_type, gizmo_operation, gizmo_prev_rotation,
+                        draw_gizmo_text(text_pos, gizmo_active_axis_type, gizmo_operation, gizmo_base_rotation,
                                       new_rotation);
-                        gizmo_prev_rotation = new_rotation;
-                    }
                     else if (gizmo_operation == ImGuizmo::SCALE)
                     {
                         if (selected_node->is_item())
